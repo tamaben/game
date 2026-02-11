@@ -3,435 +3,525 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Junior High Quiz Battle</title>
+    <title>GAKU-QUIZ BATTLE</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.6.0/confetti.browser.min.js"></script>
+    
     <style>
-        body { font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif; margin: 0; background: #f0f2f5; color: #333; overflow: hidden; touch-action: none; }
-        .hidden { display: none !important; }
-        .full-screen { position: absolute; top:0; left:0; width: 100vw; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        
-        /* --- HOST SCREEN --- */
-        #host-view { background: #fff; width: 100%; height: 100%; text-align: center; }
-        header { padding: 20px; background: #2c3e50; color: white; width: 100%; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; }
-        
-        #question-card { margin-top: 40px; width: 80%; max-width: 800px; padding: 40px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border-radius: 15px; background: white; display: inline-block; }
-        .subject-badge { background: #3498db; color: white; padding: 5px 15px; border-radius: 20px; font-size: 14px; display: inline-block; margin-bottom: 15px; }
-        .q-text { font-size: 36px; font-weight: bold; margin-bottom: 30px; line-height: 1.4; }
-        
-        /* Results / Answers Display */
-        #answers-area { margin-top: 30px; display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; width: 90%; }
-        .ans-card { background: #ecf0f1; padding: 10px; border-radius: 8px; min-width: 100px; text-align: center; border: 2px solid transparent; }
-        .ans-card.correct { border-color: #27ae60; background: #e8f8f5; }
-        .ans-card img { max-width: 150px; background: white; border: 1px solid #ccc; }
-        
-        /* Lobby */
-        #lobby { z-index: 100; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-        
-        /* --- CONTROLLER (CLIENT) --- */
-        #client-view { background: #222; color: white; padding: 20px; box-sizing: border-box; }
-        
-        /* Input Modes */
-        .input-mode { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        
-        /* Choice Buttons */
-        .grid-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; height: 60%; }
-        .c-btn { border: none; border-radius: 12px; font-size: 24px; font-weight: bold; color: white; box-shadow: 0 4px 0 rgba(0,0,0,0.2); transition: 0.1s; }
-        .c-btn:active { transform: translateY(4px); box-shadow: none; }
-        .btn-0 { background: #e74c3c; } .btn-1 { background: #3498db; }
-        .btn-2 { background: #f1c40f; color: #333; } .btn-3 { background: #2ecc71; }
-        
-        /* Text Input */
-        #text-input { font-size: 24px; padding: 15px; width: 80%; border-radius: 8px; border: none; margin-bottom: 20px; text-align: center; }
-        .submit-btn { background: #2ecc71; color: white; border: none; padding: 15px 40px; font-size: 20px; border-radius: 30px; font-weight: bold; }
-        
-        /* Handwriting Canvas */
-        #draw-area { background: white; border-radius: 10px; touch-action: none; cursor: crosshair; margin-bottom: 20px; }
-        .tools { display: flex; gap: 10px; }
-        .tool-btn { padding: 10px 20px; border-radius: 5px; border: none; font-weight: bold; cursor: pointer; }
-        
-        #waiting-msg { font-size: 24px; color: #aaa; text-align: center; }
+        :root {
+            --bg-color: #e0e5ec;
+            --shadow-light: #ffffff;
+            --shadow-dark: #a3b1c6;
+            --primary: #4d79ff;
+            --danger: #ff4d4d;
+            --success: #00b894;
+            --text-main: #4a4a4a;
+        }
 
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .hidden { display: none !important; }
+        .full-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+
+        /* --- Neumorphism UI Components --- */
+        .neu-box {
+            background: var(--bg-color);
+            border-radius: 20px;
+            box-shadow: 9px 9px 16px var(--shadow-dark), -9px -9px 16px var(--shadow-light);
+            padding: 30px;
+            text-align: center;
+        }
+
+        .neu-btn {
+            border: none;
+            outline: none;
+            background: var(--bg-color);
+            border-radius: 15px;
+            box-shadow: 6px 6px 10px var(--shadow-dark), -6px -6px 10px var(--shadow-light);
+            color: var(--primary);
+            font-weight: bold;
+            padding: 15px 30px;
+            margin: 10px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .neu-btn:active, .neu-btn.active {
+            box-shadow: inset 6px 6px 10px var(--shadow-dark), inset -6px -6px 10px var(--shadow-light);
+            transform: translateY(2px);
+        }
+
+        .neu-input {
+            border: none;
+            background: var(--bg-color);
+            border-radius: 10px;
+            box-shadow: inset 6px 6px 10px var(--shadow-dark), inset -6px -6px 10px var(--shadow-light);
+            padding: 15px;
+            font-size: 1.2rem;
+            text-align: center;
+            width: 80%;
+            margin-bottom: 20px;
+            color: var(--text-main);
+        }
+
+        /* --- HOST SCREENS --- */
+        #host-lobby h1 { font-size: 3rem; color: var(--primary); text-shadow: 2px 2px 4px rgba(0,0,0,0.1); }
+        .subject-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 20px; }
+        .subject-card { cursor: pointer; height: 100px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
+        
+        #game-screen { width: 90%; max-width: 1000px; }
+        #timer-bar-container {
+            width: 100%; height: 20px; border-radius: 10px;
+            box-shadow: inset 6px 6px 10px var(--shadow-dark), inset -6px -6px 10px var(--shadow-light);
+            margin-bottom: 20px; overflow: hidden; position: relative;
+        }
+        #timer-bar {
+            height: 100%; width: 100%; background: linear-gradient(90deg, #4d79ff, #00b894);
+            border-radius: 10px; transition: width 0.1s linear;
+        }
+
+        #question-text { font-size: 2.5rem; font-weight: 900; margin: 30px 0; min-height: 100px; }
+        
+        .answer-display { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 100%; }
+        .ans-option { 
+            padding: 20px; font-size: 1.5rem; border-radius: 15px; 
+            box-shadow: 6px 6px 10px var(--shadow-dark), -6px -6px 10px var(--shadow-light);
+            opacity: 0.8;
+        }
+        .ans-option.correct { background-color: var(--success); color: white; opacity: 1; transform: scale(1.05); }
+        .ans-option.dim { opacity: 0.3; }
+
+        /* --- CONTROLLER SCREENS --- */
+        #controller-view { background: #333; color: white; }
+        .ctl-btn { 
+            width: 100%; height: 100px; margin-bottom: 20px; border-radius: 15px; border: none; 
+            font-size: 2rem; font-weight: bold; color: white;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }
+        .ctl-btn:active { transform: scale(0.95); }
+        
+        .c-red { background: #ff5252; } .c-blue { background: #448aff; }
+        .c-green { background: #69f0ae; color: #333; } .c-yellow { background: #ffd740; color: #333; }
+
+        /* --- RESULT --- */
+        .ranking-item { 
+            display: flex; justify-content: space-between; padding: 15px; 
+            border-bottom: 1px solid rgba(0,0,0,0.1); font-size: 1.5rem; 
+        }
+        .ranking-item:nth-child(1) { color: #d4af37; font-weight: bold; font-size: 2rem; } /* Gold */
     </style>
 </head>
 <body>
 
-    <div id="lobby" class="full-screen hidden">
-        <h1>教室クイズサーバー</h1>
-        <div id="qrcode" style="background: white; padding: 15px; border-radius: 10px; margin: 20px;"></div>
-        <p>スマホでQRを読み込んで参加してください</p>
-        <div id="player-count">参加者: 0人</div>
-        <button onclick="startQuiz()" style="margin-top:20px; padding: 15px 30px; font-size:20px; cursor:pointer;">クイズ開始</button>
+    <script>
+        const QUIZ_DATABASE = {
+            "japanese": {
+                name: "国語",
+                questions: [
+                    { q: "「海豚」の読み方は？", opts: ["あしか", "いるか", "ふぐ", "とど"], ans: 1, time: 10 },
+                    { q: "「五月雨」の読み方は？", opts: ["さつきあめ", "ごがつあめ", "さみだれ", "つゆ"], ans: 2, time: 10 },
+                    { q: "「矛盾」の故事成語の由来となった物は？", opts: ["剣と鎧", "矛と盾", "弓と矢", "槍と兜"], ans: 1, time: 15 }
+                ]
+            },
+            "math": {
+                name: "数学",
+                questions: [
+                    { q: "(-3) × (-5) ＝ ？", opts: ["-15", "15", "-8", "8"], ans: 1, time: 10 },
+                    { q: "三角形の内角の和は？", opts: ["180度", "360度", "90度", "270度"], ans: 0, time: 10 },
+                    { q: "y = 2x + 3 の切片は？", opts: ["2", "3", "x", "y"], ans: 1, time: 15 }
+                ]
+            },
+            "science": {
+                name: "理科",
+                questions: [
+                    { q: "光合成で使われる気体は？", opts: ["酸素", "二酸化炭素", "窒素", "水素"], ans: 1, time: 10 },
+                    { q: "水(H₂O)を電気分解すると発生するのは？", opts: ["水素と酸素", "水素と窒素", "酸素と炭素", "何も起きない"], ans: 0, time: 15 },
+                    { q: "顕微鏡で倍率を上げると視野はどうなる？", opts: ["広くなる", "明るくなる", "暗くなる", "変わらない"], ans: 2, time: 15 }
+                ]
+            },
+            "social": {
+                name: "社会",
+                questions: [
+                    { q: "794年に遷都された都は？", opts: ["平城京", "平安京", "長岡京", "藤原京"], ans: 1, time: 10 },
+                    { q: "日本で一番広い都道府県は？", opts: ["岩手県", "福島県", "長野県", "北海道"], ans: 3, time: 10 },
+                    { q: "「民衆の、民衆による、民衆のための政治」と言ったのは？", opts: ["リンカーン", "ワシントン", "ケネディ", "ルーズベルト"], ans: 0, time: 15 }
+                ]
+            },
+            "english": {
+                name: "英語",
+                questions: [
+                    { q: "「図書館」は英語で？", opts: ["Bookstore", "Library", "Station", "Museum"], ans: 1, time: 10 },
+                    { q: "「私は泳ぐことができます」", opts: ["I am swim.", "I can swim.", "I will swim.", "I swim can."], ans: 1, time: 10 },
+                    { q: "Sunday, Monday, [ ? ], Wednesday", opts: ["Thirsday", "Tuseday", "Tuesday", "Thursday"], ans: 2, time: 15 }
+                ]
+            }
+        };
+    </script>
+
+    <div id="room-info" style="position:fixed; top:10px; left:10px; opacity:0.5; font-size:12px;">Connecting...</div>
+
+    <div id="host-lobby" class="full-screen hidden">
+        <div class="neu-box">
+            <h1>GAKU-QUIZ</h1>
+            <div style="display:flex; justify-content:center; gap:30px; align-items:center;">
+                <div id="qrcode" style="padding:10px; background:white; border-radius:10px;"></div>
+                <div style="text-align:left;">
+                    <p style="font-size:1.2rem;">スマホで参加してね！</p>
+                    <h2 id="player-count">参加者: 0人</h2>
+                </div>
+            </div>
+            
+            <h3 style="margin-top:30px;">教科を選択してスタート</h3>
+            <div class="subject-grid" id="subject-selector">
+                </div>
+        </div>
     </div>
 
-    <div id="host-view" class="full-screen hidden">
-        <header>
-            <div id="room-id-disp">ID: ---</div>
-            <div id="timer">--</div>
-        </header>
-        
-        <div id="question-card">
-            <span class="subject-badge" id="h-subject">教科</span>
-            <div class="q-text" id="h-question">問題文...</div>
-            <div id="h-info" style="color:#666; font-size:18px;"></div>
-        </div>
-
-        <div id="answers-area">
+    <div id="host-game" class="full-screen hidden">
+        <div id="game-screen" class="neu-box">
+            <h2 id="current-subject" style="color:var(--primary); margin:0;">教科名</h2>
+            <div id="question-counter" style="color:#888;">第 1 問</div>
+            
+            <div id="question-text">問題文</div>
+            
+            <div id="timer-bar-container">
+                <div id="timer-bar"></div>
             </div>
 
-        <div style="position: absolute; bottom: 30px;">
-            <button id="next-btn" onclick="nextPhase()" class="submit-btn" style="background:#34495e;">正解を表示</button>
+            <div class="answer-display">
+                <div class="ans-option" id="opt-0">選択肢A</div>
+                <div class="ans-option" id="opt-1">選択肢B</div>
+                <div class="ans-option" id="opt-2">選択肢C</div>
+                <div class="ans-option" id="opt-3">選択肢D</div>
+            </div>
         </div>
     </div>
 
-    <div id="client-view" class="full-screen hidden">
-        <div id="waiting-msg">待機中...</div>
-
-        <div id="mode-choice" class="input-mode hidden">
-            <div class="grid-btns">
-                <button class="c-btn btn-0" onclick="sendChoice(0)">A</button>
-                <button class="c-btn btn-1" onclick="sendChoice(1)">B</button>
-                <button class="c-btn btn-2" onclick="sendChoice(2)">C</button>
-                <button class="c-btn btn-3" onclick="sendChoice(3)">D</button>
-            </div>
+    <div id="host-result" class="full-screen hidden">
+        <div class="neu-box" style="min-width: 500px;">
+            <h1 id="result-title">結果発表</h1>
+            <div id="ranking-list" style="text-align:left; max-height: 400px; overflow-y:auto;">
+                </div>
+            <button class="neu-btn" onclick="location.reload()">タイトルへ戻る</button>
         </div>
+    </div>
 
-        <div id="mode-text" class="input-mode hidden">
-            <p>答えを入力してください</p>
-            <input type="text" id="text-input" placeholder="回答を入力...">
-            <button class="submit-btn" onclick="sendText()">送信</button>
+    <div id="ctrl-login" class="full-screen hidden" style="background:var(--bg-color);">
+        <div class="neu-box">
+            <h2>名前を入れてね</h2>
+            <input type="text" id="p-name" class="neu-input" placeholder="ニックネーム" maxlength="8">
+            <br>
+            <button class="neu-btn" onclick="joinGame()">参加する</button>
         </div>
+    </div>
 
-        <div id="mode-draw" class="input-mode hidden">
-            <p>枠の中に書いてください</p>
-            <canvas id="draw-area" width="300" height="300"></canvas>
-            <div class="tools">
-                <button class="tool-btn" onclick="clearCanvas()" style="background:#e74c3c; color:white;">消す</button>
-                <button class="tool-btn" onclick="sendDraw()" style="background:#2ecc71; color:white;">送信</button>
-            </div>
+    <div id="ctrl-wait" class="full-screen hidden" style="background:#222; color:white;">
+        <h2>WAITING...</h2>
+        <p>ホストが教科を選んでいます</p>
+    </div>
+
+    <div id="ctrl-buttons" class="full-screen hidden">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; width:90%; height:90%;">
+            <button class="ctl-btn c-red" onclick="sendAns(0)">A</button>
+            <button class="ctl-btn c-blue" onclick="sendAns(1)">B</button>
+            <button class="ctl-btn c-yellow" onclick="sendAns(2)">C</button>
+            <button class="ctl-btn c-green" onclick="sendAns(3)">D</button>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
-        import { getDatabase, ref, update, onValue, onDisconnect, remove } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+        import { getDatabase, ref, update, onValue, onDisconnect, set, remove } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
 
-        // --- JSON DATA (全教科サンプル) ---
-        // type: 'choice' | 'text' | 'draw'
-        const QUIZ_DATA = [
-            {
-                subject: "社会・歴史",
-                type: "choice",
-                q: "1603年に江戸幕府を開いた人物は誰？",
-                options: ["織田信長", "豊臣秀吉", "徳川家康", "足利尊氏"],
-                ans: "徳川家康" // 正解判定用（選択肢の文字と一致させる）
-            },
-            {
-                subject: "数学",
-                type: "text",
-                q: "次の方程式を解きなさい。<br>3x + 5 = 14",
-                ans: "3" // 部分一致などで判定
-            },
-            {
-                subject: "国語・漢字",
-                type: "draw",
-                q: "「カンペキ」を漢字で書きなさい。",
-                ans: "完璧" // 手書きはホストが目視確認、または正解文字を表示のみ
-            },
-            {
-                subject: "理科",
-                type: "choice",
-                q: "植物が光のエネルギーを使って養分を作る働きを何という？",
-                options: ["呼吸", "光合成", "蒸散", "消化"],
-                ans: "光合成"
-            },
-            {
-                subject: "英語",
-                type: "text",
-                q: "「図書館」を英語で綴りなさい。（すべて小文字で）",
-                ans: "library"
-            },
-            {
-                subject: "地理",
-                type: "draw",
-                q: "日本の「北海道」の形を描きなさい。",
-                ans: "(図形判定なし)"
-            }
-        ];
-
-        // --- FIREBASE SETUP ---
         const firebaseConfig = {
-            apiKey: "AIzaSyDbZzTMvUkG2LXIGY4ux0KBTmnAdqP236s", // 公開用デモキー
+            apiKey: "AIzaSyDbZzTMvUkG2LXIGY4ux0KBTmnAdqP236s",
             authDomain: "game-4f2d9.firebaseapp.com",
             databaseURL: "https://game-4f2d9-default-rtdb.asia-southeast1.firebasedatabase.app",
             projectId: "game-4f2d9"
         };
+
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // --- LOGIC ---
+        // --- Logic Setup ---
         const params = new URLSearchParams(window.location.search);
         let role = params.get('role');
         let roomId = params.get('room');
         const myId = Math.random().toString(36).substr(2, 6);
-        
-        // Host Variables
-        let currentQIndex = 0;
-        let qStatus = 'lobby'; // lobby, answering, result
-
-        // Client Canvas
-        let canvas, ctx, isDrawing = false;
+        let currentSubject = null;
+        let qList = [];
+        let qIndex = 0;
+        let timerId = null;
 
         // --- INITIALIZATION ---
         if (!role) {
-            // No role specified, create host
+            // Default to Host
             roomId = Math.random().toString(36).substring(2, 6).toUpperCase();
             window.location.replace(`?role=host&room=${roomId}`);
+        } else if (role === 'host') {
+            initHost();
+        } else {
+            initClient();
         }
 
-        if (role === 'host') {
-            document.getElementById('room-id-disp').innerText = `ID: ${roomId}`;
-            document.getElementById('lobby').classList.remove('hidden');
+        // =======================
+        //      HOST LOGIC
+        // =======================
+        function initHost() {
+            document.getElementById('host-lobby').classList.remove('hidden');
+            document.getElementById('room-info').innerText = `ID: ${roomId}`;
 
-            // QR Code
-            const url = `${window.location.origin}${window.location.pathname}?role=client&room=${roomId}`;
-            new QRCode(document.getElementById("qrcode"), { text: url, width: 150, height: 150 });
+            // Generate QR
+            const url = `${window.location.origin}${window.location.pathname}?role=ctrl&room=${roomId}`;
+            new QRCode(document.getElementById("qrcode"), { text: url, width: 120, height: 120 });
 
-            // Listen for players
+            // Initialize DB
+            update(ref(db, `rooms/${roomId}`), { status: 'lobby', qIndex: -1 });
+            remove(ref(db, `rooms/${roomId}/players`)); // Clean old players
+
+            // Subject Select Buttons
+            const selector = document.getElementById('subject-selector');
+            Object.keys(QUIZ_DATABASE).forEach(key => {
+                const sub = QUIZ_DATABASE[key];
+                const div = document.createElement('div');
+                div.className = 'neu-btn subject-card';
+                div.innerText = sub.name;
+                div.onclick = () => startSubject(key);
+                selector.appendChild(div);
+            });
+
+            // Monitor Players
             onValue(ref(db, `rooms/${roomId}/players`), (snap) => {
                 const players = snap.val() || {};
                 document.getElementById('player-count').innerText = `参加者: ${Object.keys(players).length}人`;
-                renderHostAnswers(players);
+            });
+        }
+
+        function startSubject(key) {
+            currentSubject = QUIZ_DATABASE[key];
+            qList = currentSubject.questions;
+            qIndex = 0;
+            
+            // Reset scores
+            // (Simpler to just keep connection and reset score field, but for now we assume fresh start)
+            
+            document.getElementById('host-lobby').classList.add('hidden');
+            document.getElementById('host-game').classList.remove('hidden');
+            document.getElementById('current-subject').innerText = currentSubject.name;
+            
+            runQuestion();
+        }
+
+        function runQuestion() {
+            if (qIndex >= qList.length) {
+                endGame();
+                return;
+            }
+
+            const q = qList[qIndex];
+            
+            // UI Update
+            document.getElementById('question-counter').innerText = `第 ${qIndex + 1} / ${qList.length} 問`;
+            document.getElementById('question-text').innerText = q.q;
+            
+            q.opts.forEach((txt, i) => {
+                const el = document.getElementById(`opt-${i}`);
+                el.innerText = txt;
+                el.className = 'ans-option'; // Reset styles
             });
 
-            window.startQuiz = () => {
-                currentQIndex = 0;
-                document.getElementById('lobby').classList.add('hidden');
-                document.getElementById('host-view').classList.remove('hidden');
-                loadQuestion();
-            };
+            // Send to DB
+            update(ref(db, `rooms/${roomId}`), {
+                status: 'question',
+                startTime: Date.now(),
+                limit: q.time,
+                qIndex: qIndex
+            });
 
-            window.nextPhase = () => {
-                if (qStatus === 'answering') {
-                    // Show Result
-                    qStatus = 'result';
-                    document.getElementById('next-btn').innerText = "次の問題へ";
-                    
-                    const q = QUIZ_DATA[currentQIndex];
-                    document.getElementById('h-info').innerHTML = `正解: <span style="color:#e74c3c; font-weight:bold; font-size:32px;">${q.ans}</span>`;
-                    
-                    // Reveal/Grade Logic in visual
-                    update(ref(db, `rooms/${roomId}/state`), { phase: 'result', correct: q.ans });
+            // Timer Logic
+            let timeLeft = q.time;
+            const bar = document.getElementById('timer-bar');
+            bar.style.width = '100%';
+            bar.style.background = 'linear-gradient(90deg, #4d79ff, #00b894)';
 
-                } else if (qStatus === 'result') {
-                    // Next Question
-                    currentQIndex++;
-                    if (currentQIndex >= QUIZ_DATA.length) {
-                        alert("全問終了！お疲れ様でした。");
-                        currentQIndex = 0; // Loop or End
-                    }
-                    loadQuestion();
+            clearInterval(timerId);
+            timerId = setInterval(() => {
+                timeLeft -= 0.1;
+                const pct = (timeLeft / q.time) * 100;
+                bar.style.width = `${pct}%`;
+
+                if (timeLeft <= 3) bar.style.background = '#ff4d4d'; // Red alert
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerId);
+                    showAnswer();
                 }
-            };
-        } else {
-            // Client Setup
-            document.getElementById('client-view').classList.remove('hidden');
+            }, 100);
+        }
+
+        function showAnswer() {
+            const q = qList[qIndex];
+            const correctIdx = q.ans;
+            
+            // Highlight Host UI
+            document.getElementById(`opt-${correctIdx}`).classList.add('correct');
+            [0,1,2,3].forEach(i => {
+                if (i !== correctIdx) document.getElementById(`opt-${i}`).classList.add('dim');
+            });
+
+            // Update DB State (Clients disable buttons)
+            update(ref(db, `rooms/${roomId}`), { status: 'result' });
+
+            // Grading
+            // Get all players answers
+            getDatabase(app); // Re-ref not needed but for clarity
+            // We need to read player answers once
+            // Using "once" approach via onValue with listener off? Or just fetch ref
+            // Realtime approach:
+            // Since we are host, we can look at the snapshot or just trust the client writes?
+            // Safer: Host calculates score based on answers in DB.
+        }
+
+        // We need a persistent listener for grading during the game?
+        // Let's do it simply: When timer ends, read players, calc score, update players.
+        // Wait... Host `showAnswer` calls this.
+
+        // Add 3 seconds delay then next
+        setTimeout(() => {
+            gradeAndNext();
+        }, 3000);
+
+        function gradeAndNext() {
+            // Read all players
+            onValue(ref(db, `rooms/${roomId}/players`), (snap) => {
+                const players = snap.val() || {};
+                const q = qList[qIndex];
+                const updates = {};
+
+                Object.keys(players).forEach(pid => {
+                    const p = players[pid];
+                    let currentScore = p.score || 0;
+                    
+                    if (p.lastAns === q.ans) {
+                        // Correct!
+                        currentScore += 10;
+                        // Add time bonus? Simple version: just +10
+                    }
+                    updates[`${pid}/score`] = currentScore;
+                    updates[`${pid}/lastAns`] = null; // Reset for next
+                });
+                
+                update(ref(db, `rooms/${roomId}/players`), updates).then(() => {
+                    qIndex++;
+                    runQuestion(); // Loop
+                });
+            }, { onlyOnce: true });
+        }
+
+        function endGame() {
+            document.getElementById('host-game').classList.add('hidden');
+            document.getElementById('host-result').classList.remove('hidden');
+            
+            update(ref(db, `rooms/${roomId}`), { status: 'finish' });
+            
+            // Confetti
+            confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+
+            onValue(ref(db, `rooms/${roomId}/players`), (snap) => {
+                const players = snap.val() || {};
+                const sorted = Object.values(players).sort((a,b) => b.score - a.score);
+                
+                const list = document.getElementById('ranking-list');
+                list.innerHTML = '';
+                
+                sorted.forEach((p, i) => {
+                    const div = document.createElement('div');
+                    div.className = 'ranking-item';
+                    div.innerHTML = `<span>${i+1}. ${p.name}</span> <span>${p.score}pt</span>`;
+                    list.appendChild(div);
+                });
+            });
+        }
+
+
+        // =======================
+        //      CLIENT LOGIC
+        // =======================
+        function initClient() {
+            document.getElementById('ctrl-login').classList.remove('hidden');
+        }
+
+        window.joinGame = () => {
+            const name = document.getElementById('p-name').value || "名無し";
             const myRef = ref(db, `rooms/${roomId}/players/${myId}`);
+            
+            set(myRef, {
+                name: name,
+                score: 0,
+                lastAns: null
+            });
             onDisconnect(myRef).remove();
-            update(myRef, { name: 'Player', score: 0 });
+
+            document.getElementById('ctrl-login').classList.add('hidden');
+            document.getElementById('ctrl-wait').classList.remove('hidden');
 
             // Listen to Game State
-            onValue(ref(db, `rooms/${roomId}/state`), (snap) => {
+            onValue(ref(db, `rooms/${roomId}`), (snap) => {
                 const state = snap.val();
                 if (!state) return;
 
-                if (state.phase === 'question') {
-                    setupClientInput(state.qData);
-                } else if (state.phase === 'result') {
-                    document.getElementById('waiting-msg').innerText = "正解発表中...";
-                    document.getElementById('waiting-msg').classList.remove('hidden');
-                    hideAllInputs();
+                if (state.status === 'lobby') {
+                    showScreen('ctrl-wait');
+                } else if (state.status === 'question') {
+                    showScreen('ctrl-buttons');
+                    enableButtons(true);
+                } else if (state.status === 'result') {
+                    enableButtons(false);
+                    // Could show correct/incorrect feedback here
+                } else if (state.status === 'finish') {
+                    showScreen('ctrl-wait');
+                    document.querySelector('#ctrl-wait h2').innerText = "終了！";
+                    document.querySelector('#ctrl-wait p').innerText = "ホスト画面を見てね";
                 }
             });
-
-            initCanvas();
         }
 
-        // --- HOST FUNCTIONS ---
-        function loadQuestion() {
-            qStatus = 'answering';
-            const q = QUIZ_DATA[currentQIndex];
-            
-            // Display Host
-            document.getElementById('h-subject').innerText = q.subject;
-            document.getElementById('h-question').innerHTML = q.q;
-            document.getElementById('h-info').innerText = "回答受付中...";
-            document.getElementById('next-btn').innerText = "正解を表示";
-            document.getElementById('answers-area').innerHTML = ''; // Clear previous answers
+        function showScreen(id) {
+            ['ctrl-login', 'ctrl-wait', 'ctrl-buttons'].forEach(i => document.getElementById(i).classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
+        }
 
-            // Reset Player Answers in DB
-            // Note: In a real app, we might use cloud functions or iterate updates. 
-            // Here we rely on clients overwriting their own answer on new Q, 
-            // but ideally host clears them. Let's just broadcast new Q.
+        window.sendAns = (idx) => {
+            // Vibrate
+            if (navigator.vibrate) navigator.vibrate(50);
             
-            // Send to Clients
-            // We verify choices options to send to client
-            let clientQData = { type: q.type, qText: q.q };
-            if (q.type === 'choice') clientQData.options = q.options;
+            // Disable buttons visually
+            enableButtons(false);
+            
+            // Send to DB
+            update(ref(db, `rooms/${roomId}/players/${myId}`), { lastAns: idx });
+        }
 
-            update(ref(db, `rooms/${roomId}/state`), { 
-                phase: 'question', 
-                qData: clientQData,
-                timestamp: Date.now()
+        function enableButtons(on) {
+            const btns = document.querySelectorAll('.ctl-btn');
+            btns.forEach(b => {
+                b.disabled = !on;
+                b.style.opacity = on ? 1 : 0.5;
+                if(on) b.style.transform = "scale(1)";
             });
         }
-
-        function renderHostAnswers(players) {
-            if (role !== 'host') return;
-            const area = document.getElementById('answers-area');
-            area.innerHTML = '';
-            
-            const currentAns = QUIZ_DATA[currentQIndex]?.ans;
-
-            Object.entries(players).forEach(([id, p]) => {
-                if (!p.answer) return; // Skip if no answer yet
-
-                const card = document.createElement('div');
-                card.className = 'ans-card';
-                
-                let content = '';
-                if (p.answer.type === 'image') {
-                    content = `<img src="${p.answer.val}">`;
-                } else {
-                    content = `<div style="font-size:24px; font-weight:bold;">${p.answer.val}</div>`;
-                }
-                
-                // Simple Grading Visualization (only during Result phase)
-                if (qStatus === 'result' && currentAns) {
-                    // Check logic
-                    let isCorrect = false;
-                    if(QUIZ_DATA[currentQIndex].type === 'choice' || QUIZ_DATA[currentQIndex].type === 'text') {
-                        if (p.answer.val == currentAns) isCorrect = true; // Loose equality
-                    }
-                    if (isCorrect) card.classList.add('correct');
-                }
-
-                card.innerHTML = `<div>${p.name || id.substr(0,3)}</div>${content}`;
-                area.appendChild(card);
-            });
-        }
-
-        // --- CLIENT FUNCTIONS ---
-        function hideAllInputs() {
-            document.querySelectorAll('.input-mode').forEach(el => el.classList.add('hidden'));
-        }
-
-        function setupClientInput(qData) {
-            hideAllInputs();
-            document.getElementById('waiting-msg').classList.add('hidden');
-
-            if (qData.type === 'choice') {
-                const el = document.getElementById('mode-choice');
-                el.classList.remove('hidden');
-                // Set button text
-                qData.options.forEach((opt, i) => {
-                    const btn = el.querySelector(`.btn-${i}`);
-                    if(btn) btn.innerText = opt;
-                });
-
-            } else if (qData.type === 'text') {
-                const el = document.getElementById('mode-text');
-                el.classList.remove('hidden');
-                document.getElementById('text-input').value = '';
-
-            } else if (qData.type === 'draw') {
-                const el = document.getElementById('mode-draw');
-                el.classList.remove('hidden');
-                clearCanvas();
-            }
-        }
-
-        // --- CLIENT SEND ACTIONS ---
-        window.sendChoice = (index) => {
-            // Get option text locally or send index? 
-            // Sending index is safer, but let's send text for display simplicity on Host
-            // Need to get text from buttons.
-            const btn = document.querySelector(`.btn-${index}`);
-            const val = btn.innerText;
-            submitAnswer(val, 'text');
-            waitUI();
-        };
-
-        window.sendText = () => {
-            const val = document.getElementById('text-input').value;
-            if(!val) return;
-            submitAnswer(val, 'text');
-            waitUI();
-        };
-
-        window.sendDraw = () => {
-            const dataUrl = canvas.toDataURL('image/png', 0.5); // Compress slightly
-            submitAnswer(dataUrl, 'image');
-            waitUI();
-        };
-
-        function submitAnswer(val, type) {
-            update(ref(db, `rooms/${roomId}/players/${myId}/answer`), {
-                type: type,
-                val: val,
-                timestamp: Date.now()
-            });
-        }
-
-        function waitUI() {
-            hideAllInputs();
-            document.getElementById('waiting-msg').innerText = "回答を送信しました！";
-            document.getElementById('waiting-msg').classList.remove('hidden');
-        }
-
-        // --- CANVAS LOGIC ---
-        function initCanvas() {
-            canvas = document.getElementById('draw-area');
-            ctx = canvas.getContext('2d');
-            
-            // Adjust for high DPI
-            // For simple demo, fixed size 300x300 is used in CSS
-            ctx.lineWidth = 3;
-            ctx.lineCap = 'round';
-            ctx.strokeStyle = '#000';
-
-            const startDraw = (e) => {
-                isDrawing = true;
-                ctx.beginPath();
-                const rect = canvas.getBoundingClientRect();
-                const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-                const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
-                ctx.moveTo(x, y);
-                e.preventDefault();
-            };
-
-            const moveDraw = (e) => {
-                if (!isDrawing) return;
-                const rect = canvas.getBoundingClientRect();
-                const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-                const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
-                ctx.lineTo(x, y);
-                ctx.stroke();
-                e.preventDefault();
-            };
-
-            const endDraw = () => { isDrawing = false; };
-
-            canvas.addEventListener('mousedown', startDraw);
-            canvas.addEventListener('mousemove', moveDraw);
-            canvas.addEventListener('mouseup', endDraw);
-            canvas.addEventListener('touchstart', startDraw, {passive: false});
-            canvas.addEventListener('touchmove', moveDraw, {passive: false});
-            canvas.addEventListener('touchend', endDraw);
-        }
-
-        window.clearCanvas = () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-        };
 
     </script>
 </body>
