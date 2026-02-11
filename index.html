@@ -3,69 +3,132 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>QR連携スマホリモコン</title>
-    <!-- QRコード生成ライブラリ -->
+    <title>Multi-Game Party</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        body { font-family: 'Hiragino Kaku Gothic ProN', sans-serif; margin: 0; background: #121212; color: white; overflow: hidden; touch-action: none; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #111; color: white; overflow: hidden; touch-action: none; }
         .hidden { display: none !important; }
-        .flex-center { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center; }
-        
-        /* ホスト画面（PC） */
-        #qrcode-container { background: white; padding: 20px; border-radius: 10px; margin-top: 20px; }
-        canvas { border: 2px solid #444; background: #000; box-shadow: 0 0 30px rgba(0,255,255,0.2); max-width: 90vw; }
-        .room-id { font-size: 24px; color: #00d4ff; margin-bottom: 10px; font-weight: bold; }
+        .full-screen { position: absolute; top:0; left:0; width: 100vw; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 
-        /* コントローラー画面（スマホ） */
-        #controller-view { background: linear-gradient(135deg, #1e3a8a 0%, #1e1b4b 100%); }
-        .action-btn { width: 200px; height: 200px; border-radius: 50%; border: none; background: #ef4444; color: white; font-size: 28px; font-weight: bold; box-shadow: 0 10px #b91c1c; active: translateY(5px); }
-        .action-btn:active { transform: translateY(5px); box-shadow: 0 5px #b91c1c; }
-        #start-btn { padding: 20px 50px; font-size: 22px; background: #10b981; color: white; border: none; border-radius: 50px; cursor: pointer; }
+        /* --- UI: 共通 --- */
+        #room-info { position: absolute; top: 10px; left: 10px; z-index: 100; font-size: 14px; color: #aaa; background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 4px; }
         
-        #debug-log { position: fixed; bottom: 5px; width: 100%; font-size: 10px; color: #666; pointer-events: none; }
+        /* --- UI: ホスト（PC） --- */
+        #host-lobby { background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d); z-index: 10; text-align: center; }
+        #game-menu { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 20px; }
+        .game-card { background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px; cursor: pointer; border: 2px solid transparent; transition: 0.2s; }
+        .game-card:hover { background: rgba(255,255,255,0.3); transform: scale(1.05); border-color: #fff; }
+        .game-title { font-weight: bold; font-size: 18px; margin-bottom: 5px; }
+        
+        #game-container-3d, #game-container-2d { width: 100%; height: 100%; background: #000; }
+        
+        /* --- UI: コントローラー（スマホ） --- */
+        #controller-view { background: #222; }
+        
+        /* ジョイスティック（3D用） */
+        #joystick-zone { width: 300px; height: 300px; background: rgba(255,255,255,0.1); border-radius: 50%; position: relative; margin-bottom: 20px; border: 2px solid rgba(255,255,255,0.2); }
+        #joystick-knob { width: 80px; height: 80px; background: #00d4ff; border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 15px #00d4ff; pointer-events: none; }
+        
+        /* ボタンパッド（2D用） */
+        #dpad-zone { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .d-btn { width: 70px; height: 70px; background: #444; border-radius: 10px; border: none; font-size: 24px; color: white; }
+        .d-btn:active { background: #666; }
+        
+        .action-btn { width: 120px; height: 120px; border-radius: 50%; background: #ff4757; color: white; border: none; font-weight: bold; font-size: 20px; margin-top: 20px; box-shadow: 0 5px #c0392b; }
+        .action-btn:active { transform: translateY(5px); box-shadow: 0 0px #c0392b; }
+
+        /* プレイヤーリスト */
+        #player-list { margin-top: 20px; font-size: 14px; color: #ddd; }
     </style>
 </head>
 <body>
 
-    <!-- PC：ホスト待機画面 -->
-    <div id="host-setup" class="flex-center hidden">
-        <h1>スマホを接続してください</h1>
-        <p>下のQRコードをカメラでスキャン！</p>
-        <div id="qrcode-container">
-            <div id="qrcode"></div>
-        </div>
-        <p class="room-id" id="display-room-id"></p>
-    </div>
+    <!-- 部屋ID表示 -->
+    <div id="room-info">Loading...</div>
 
-    <!-- PC：メインゲーム画面 -->
-    <div id="host-game" class="flex-center hidden">
-        <canvas id="gameCanvas" width="800" height="500"></canvas>
-        <p>スマホを傾けて移動 / 振ってチャージ / タップで爆発</p>
-    </div>
-
-    <!-- スマホ：コントローラー画面 -->
-    <div id="controller-view" class="flex-center hidden">
-        <div id="controller-setup">
-            <h2>CONTROLLER</h2>
-            <p>Ready?</p>
-            <button id="start-btn">接続開始</button>
-        </div>
-        <div id="controller-active" class="hidden">
-            <p id="charge-text">振ってエネルギーを溜めろ！</p>
-            <div style="width: 250px; height: 20px; background: #333; margin: 20px auto; border-radius: 10px; overflow: hidden;">
-                <div id="charge-bar" style="width: 0%; height: 100%; background: #fbbf24; transition: width 0.1s;"></div>
+    <!-- HOST: ロビー画面 -->
+    <div id="host-lobby" class="full-screen hidden">
+        <h1>GAME SELECTOR</h1>
+        <div id="qrcode" style="background: white; padding: 10px; border-radius: 8px;"></div>
+        <p>スマホでスキャンして参加！</p>
+        
+        <div id="game-menu">
+            <div class="game-card" onclick="selectGame('flight3d')">
+                <div class="game-title">✈️ 3D SKY BATTLE</div>
+                <div class="desc">3D空間を自由に飛行</div>
             </div>
-            <button id="action-btn" class="action-btn">ATTACK</button>
+            <div class="game-card" onclick="selectGame('shooter2d')">
+                <div class="game-title">🔫 2D SHOOTER</div>
+                <div class="desc">全方向シューティング</div>
+            </div>
+            <div class="game-card" onclick="selectGame('sumo')">
+                <div class="game-title">🤼 CIRCLE SUMO</div>
+                <div class="desc">体当たりで落とし合い</div>
+            </div>
+            <div class="game-card" onclick="selectGame('paint')">
+                <div class="game-title">🎨 PAINT WAR</div>
+                <div class="desc">床を自分の色に塗れ</div>
+            </div>
+            <div class="game-card" onclick="selectGame('sniper')">
+                <div class="game-title">🎯 GYRO SNIPER</div>
+                <div class="desc">スマホを傾けて狙撃</div>
+            </div>
+            <div class="game-card" onclick="selectGame('race')">
+                <div class="game-title">🏎 TAP RACING</div>
+                <div class="desc">連打で加速レース</div>
+            </div>
         </div>
+        <div id="player-list">参加者待機中...</div>
     </div>
 
-    <div id="debug-log"></div>
+    <!-- HOST: 3Dゲーム画面 -->
+    <div id="host-3d" class="full-screen hidden">
+        <div id="game-container-3d"></div>
+        <button onclick="backToLobby()" style="position: absolute; top:10px; right:10px; z-index: 100;">MENU</button>
+    </div>
+
+    <!-- HOST: 2Dゲーム画面 -->
+    <div id="host-2d" class="full-screen hidden">
+        <canvas id="canvas-2d"></canvas>
+        <button onclick="backToLobby()" style="position: absolute; top:10px; right:10px; z-index: 100;">MENU</button>
+    </div>
+
+    <!-- CONTROLLER: スマホ画面 -->
+    <div id="controller-view" class="full-screen hidden">
+        <h2 id="ctrl-title" style="margin-bottom: 20px;">WAITING...</h2>
+        
+        <!-- UI: Joystick -->
+        <div id="ui-joystick" class="hidden">
+            <div id="joystick-zone">
+                <div id="joystick-knob"></div>
+            </div>
+            <p>Drag to Fly</p>
+            <button class="action-btn" id="btn-boost">BOOST</button>
+        </div>
+
+        <!-- UI: D-Pad -->
+        <div id="ui-dpad" class="hidden">
+            <div id="dpad-zone">
+                <div></div><button class="d-btn" id="d-up">▲</button><div></div>
+                <button class="d-btn" id="d-left">◀</button><div></div><button class="d-btn" id="d-right">▶</button>
+                <div></div><button class="d-btn" id="d-down">▼</button><div></div>
+            </div>
+            <button class="action-btn" id="btn-fire">FIRE</button>
+        </div>
+
+        <!-- UI: Tap/Gyro -->
+        <div id="ui-simple" class="hidden">
+            <p id="simple-instr">TAP or TILT!</p>
+            <button class="action-btn" id="btn-main" style="width: 200px; height: 200px;">ACTION</button>
+        </div>
+    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+        import { getDatabase, ref, set, onValue, update, remove, onDisconnect } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
 
-        // Firebase設定
+        // --- 1. Firebase Setup ---
         const firebaseConfig = {
             apiKey: "AIzaSyDbZzTMvUkG2LXIGY4ux0KBTmnAdqP236s",
             authDomain: "game-4f2d9.firebaseapp.com",
@@ -80,168 +143,372 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // URLパラメータから情報を取得
-        const urlParams = new URLSearchParams(window.location.search);
-        let role = urlParams.get('role') || 'host';
-        let roomId = urlParams.get('room');
+        // --- 2. Room & Role Logic ---
+        const params = new URLSearchParams(window.location.search);
+        let role = params.get('role') || 'host';
+        let roomId = params.get('room');
+        let myId = Math.random().toString(36).substr(2, 6);
+        let currentMode = 'lobby';
+        
+        // Colors for players
+        const PLAYER_COLORS = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff];
+        function getColor(id) {
+            let hash = 0;
+            for(let i=0; i<id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
+            return PLAYER_COLORS[Math.abs(hash) % PLAYER_COLORS.length];
+        }
 
-        // --- ホスト側の初期化 ---
+        // --- HOST LOGIC ---
         if (role === 'host') {
-            // Room IDがなければ生成してリダイレクト
             if (!roomId) {
-                roomId = Math.random().toString(36).substring(2, 7).toUpperCase();
-                window.location.href = window.location.origin + window.location.pathname + `?role=host&room=${roomId}`;
+                roomId = Math.random().toString(36).substring(2, 6).toUpperCase();
+                window.location.replace(`?role=host&room=${roomId}`);
+            }
+            
+            document.getElementById('room-info').innerText = `ROOM: ${roomId}`;
+            document.getElementById('host-lobby').classList.remove('hidden');
+
+            // Generate QR
+            const url = `${window.location.origin}${window.location.pathname}?role=ctrl&room=${roomId}`;
+            new QRCode(document.getElementById("qrcode"), { text: url, width: 150, height: 150 });
+
+            // Player Management
+            const playersRef = ref(db, `rooms/${roomId}/players`);
+            let players = {}; // Local state
+
+            onValue(playersRef, (snap) => {
+                players = snap.val() || {};
+                updatePlayerList();
+            });
+
+            function updatePlayerList() {
+                const list = Object.keys(players).map(k => `<span style="color:#${getColor(k).toString(16)}">● Player ${k.substr(0,3)}</span>`).join(" ");
+                document.getElementById('player-list').innerHTML = `参加者: ${list}`;
             }
 
-            document.getElementById('host-setup').classList.remove('hidden');
-            document.getElementById('display-room-id').innerText = "ROOM ID: " + roomId;
-
-            // スマホ用URLの生成 (このHTML自体をコントローラーモードで開かせる)
-            const controllerUrl = window.location.origin + window.location.pathname + `?role=controller&room=${roomId}`;
-            
-            // QRコード生成
-            new QRCode(document.getElementById("qrcode"), {
-                text: controllerUrl,
-                width: 200,
-                height: 200
-            });
-
-            const gameRef = ref(db, 'rooms/' + roomId);
-            let gameStarted = false;
-
-            // ゲーム状態
-            let state = { x: 400, y: 250, charge: 0, particles: [] };
-
-            // Firebaseのデータ受信
-            onValue(gameRef, (snapshot) => {
-                const data = snapshot.val();
-                if (!data) return;
-
-                // 最初の信号を受け取ったらゲーム画面に切り替え
-                if (!gameStarted) {
-                    gameStarted = true;
-                    document.getElementById('host-setup').classList.add('hidden');
-                    document.getElementById('host-game').classList.remove('hidden');
-                    startHeartbeat();
-                }
-
-                if (data.type === 'move') {
-                    state.x += data.gamma * 0.6;
-                    state.y += data.beta * 0.6;
-                } else if (data.type === 'shake') {
-                    state.charge = Math.min(state.charge + 2, 100);
-                } else if (data.type === 'attack') {
-                    explode(state.x, state.y, state.charge);
-                    state.charge = 0;
-                }
+            // Game Selection
+            window.selectGame = (mode) => {
+                currentMode = mode;
+                update(ref(db, `rooms/${roomId}`), { mode: mode });
                 
-                state.x = Math.max(0, Math.min(800, state.x));
-                state.y = Math.max(0, Math.min(500, state.y));
-            });
+                document.getElementById('host-lobby').classList.add('hidden');
+                document.getElementById('host-3d').classList.add('hidden');
+                document.getElementById('host-2d').classList.add('hidden');
 
-            // ゲーム描画処理
-            const canvas = document.getElementById('gameCanvas');
-            const ctx = canvas.getContext('2d');
+                if (mode === 'flight3d') {
+                    document.getElementById('host-3d').classList.remove('hidden');
+                    init3DGame();
+                } else {
+                    document.getElementById('host-2d').classList.remove('hidden');
+                    init2DGame(mode);
+                }
+            };
 
-            function explode(x, y, power) {
-                for(let i=0; i < power + 10; i++) {
-                    state.particles.push({
-                        x, y, 
-                        vx: (Math.random()-0.5)*15, 
-                        vy: (Math.random()-0.5)*15, 
-                        life: 1.0,
-                        color: `hsl(${Math.random()*360}, 100%, 50%)`
+            window.backToLobby = () => {
+                window.location.reload(); // Reset for simplicity
+            };
+
+            // --- 3D ENGINE (Three.js) ---
+            let scene, camera, renderer, planes = {};
+            
+            function init3DGame() {
+                const container = document.getElementById('game-container-3d');
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x87CEEB);
+                scene.fog = new THREE.Fog(0x87CEEB, 10, 500);
+
+                camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+                camera.position.set(0, 50, 100);
+                camera.lookAt(0, 0, 0);
+
+                renderer = new THREE.WebGLRenderer({ antialias: true });
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                container.innerHTML = '';
+                container.appendChild(renderer.domElement);
+
+                // Lighting
+                const light = new THREE.DirectionalLight(0xffffff, 1);
+                light.position.set(50, 100, 50);
+                scene.add(light);
+                scene.add(new THREE.AmbientLight(0x404040));
+
+                // Ground
+                const grid = new THREE.GridHelper(1000, 100, 0x555555, 0xcccccc);
+                scene.add(grid);
+
+                animate3D();
+            }
+
+            function createPlane(id) {
+                const group = new THREE.Group();
+                const color = getColor(id);
+                
+                // Fuselage
+                const geo = new THREE.ConeGeometry(2, 8, 8);
+                const mat = new THREE.MeshPhongMaterial({ color: color });
+                const body = new THREE.Mesh(geo, mat);
+                body.rotation.x = Math.PI / 2; // Point forward
+                group.add(body);
+
+                // Wings
+                const wingGeo = new THREE.BoxGeometry(10, 0.2, 3);
+                const wing = new THREE.Mesh(wingGeo, mat);
+                group.add(wing);
+
+                scene.add(group);
+                return { mesh: group, speed: 0, rotX: 0, rotZ: 0 };
+            }
+
+            function animate3D() {
+                if (currentMode !== 'flight3d') return;
+                requestAnimationFrame(animate3D);
+
+                // Sync players
+                Object.keys(players).forEach(id => {
+                    const pData = players[id];
+                    if (!planes[id]) planes[id] = createPlane(id);
+                    
+                    const p = planes[id];
+                    
+                    // Joystick logic (x: roll, y: pitch)
+                    if (pData.input) {
+                        const roll = -pData.input.x * 0.05;
+                        const pitch = pData.input.y * 0.05;
+                        
+                        p.mesh.rotation.z += roll;
+                        p.mesh.rotation.x += pitch;
+                        
+                        // Move forward based on rotation
+                        const speed = pData.action ? 1.5 : 0.8; // Boost
+                        p.mesh.translateY(speed); // Cone points Y local
+                    }
+                });
+
+                // Remove disconnected
+                Object.keys(planes).forEach(id => {
+                    if (!players[id]) {
+                        scene.remove(planes[id].mesh);
+                        delete planes[id];
+                    }
+                });
+
+                renderer.render(scene, camera);
+            }
+
+
+            // --- 2D ENGINE (Canvas) ---
+            let ctx, canvas;
+            let projectiles = [];
+
+            function init2DGame(mode) {
+                canvas = document.getElementById('canvas-2d');
+                ctx = canvas.getContext('2d');
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                projectiles = [];
+                
+                // Initialize positions for simple games
+                Object.keys(players).forEach((id, index) => {
+                    players[id].x = 100 + (index * 100);
+                    players[id].y = 100;
+                    players[id].score = 0;
+                });
+
+                animate2D(mode);
+            }
+
+            function animate2D(mode) {
+                if (currentMode !== mode) return;
+                requestAnimationFrame(() => animate2D(mode));
+
+                ctx.fillStyle = '#222';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                Object.keys(players).forEach(id => {
+                    const p = players[id];
+                    if(!p.x) p.x = canvas.width/2;
+                    if(!p.y) p.y = canvas.height/2;
+
+                    const color = '#' + getColor(id).toString(16).padStart(6, '0');
+                    ctx.fillStyle = color;
+
+                    // --- GAME LOGIC SWITCHER ---
+                    if (mode === 'shooter2d') {
+                        // Move
+                        if(p.input) {
+                            if(p.input.u) p.y -= 3;
+                            if(p.input.d) p.y += 3;
+                            if(p.input.l) p.x -= 3;
+                            if(p.input.r) p.x += 3;
+                        }
+                        // Shoot
+                        if(p.action && !p.cooldown) {
+                            projectiles.push({x: p.x, y: p.y, dx: 0, dy: -10, owner: id});
+                            p.cooldown = 20;
+                        }
+                        if(p.cooldown > 0) p.cooldown--;
+                        
+                        // Draw
+                        ctx.beginPath(); ctx.arc(p.x, p.y, 20, 0, Math.PI*2); ctx.fill();
+                    } 
+                    else if (mode === 'sumo') {
+                        // Push logic
+                        if (p.action) { // Button mash
+                            p.size = (p.size || 30) + 2; 
+                            p.action = false; // consume input
+                        }
+                        if(p.size > 30) p.size -= 0.5; // Shrink
+                        
+                        ctx.beginPath(); ctx.arc(p.x, p.y, p.size || 30, 0, Math.PI*2); ctx.fill();
+                    }
+                    else if (mode === 'sniper') {
+                        // Gyro Aiming
+                        if (p.gyro) {
+                            p.x = (canvas.width/2) + p.gyro.gamma * 10;
+                            p.y = (canvas.height/2) + p.gyro.beta * 10;
+                        }
+                        // Draw Crosshair
+                        ctx.strokeStyle = color; ctx.lineWidth = 3;
+                        ctx.beginPath(); ctx.arc(p.x, p.y, 40, 0, Math.PI*2); ctx.stroke();
+                        ctx.moveTo(p.x-50, p.y); ctx.lineTo(p.x+50, p.y); ctx.stroke();
+                        ctx.moveTo(p.x, p.y-50); ctx.lineTo(p.x, p.y+50); ctx.stroke();
+                    }
+                    else if (mode === 'race') {
+                        if (p.action) { p.x += 10; p.action = false; }
+                        ctx.fillRect(p.x, 50 + Object.keys(players).indexOf(id)*100, 50, 50);
+                    }
+                });
+
+                // Projectiles (Shooter)
+                if (mode === 'shooter2d') {
+                    ctx.fillStyle = 'white';
+                    projectiles.forEach((proj, i) => {
+                        proj.x += proj.dx; proj.y += proj.dy;
+                        ctx.fillRect(proj.x, proj.y, 5, 5);
+                        if(proj.y < 0 || proj.y > canvas.height) projectiles.splice(i, 1);
                     });
                 }
             }
-
-            function draw() {
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                // 自機
-                const glow = 10 + state.charge / 2;
-                ctx.shadowBlur = glow;
-                ctx.shadowColor = "#00d4ff";
-                ctx.fillStyle = "#00d4ff";
-                ctx.beginPath();
-                ctx.arc(state.x, state.y, 15 + state.charge/5, 0, Math.PI*2);
-                ctx.fill();
-                ctx.shadowBlur = 0;
-
-                // エフェクト
-                state.particles.forEach((p, i) => {
-                    p.x += p.vx; p.y += p.vy; p.life -= 0.02;
-                    ctx.fillStyle = p.color;
-                    ctx.globalAlpha = p.life;
-                    ctx.fillRect(p.x, p.y, 5, 5);
-                    if(p.life <= 0) state.particles.splice(i, 1);
-                });
-                ctx.globalAlpha = 1;
-
-                requestAnimationFrame(draw);
-            }
-            draw();
-
-            // 接続維持用のダミー書き込み
-            function startHeartbeat() {
-                setInterval(() => set(ref(db, 'rooms/' + roomId + '/heartbeat'), Date.now()), 5000);
-            }
         }
 
-        // --- コントローラー（スマホ）側の初期化 ---
+        // --- CONTROLLER LOGIC ---
         else {
             document.getElementById('controller-view').classList.remove('hidden');
-            const startBtn = document.getElementById('start-btn');
-            const gameRef = ref(db, 'rooms/' + roomId);
-
-            startBtn.addEventListener('click', async () => {
-                // センサー許可リクエスト
-                if (typeof DeviceMotionEvent.requestPermission === 'function') {
-                    const res = await DeviceMotionEvent.requestPermission();
-                    if (res !== 'granted') return alert("センサーを許可してください");
-                }
-                
-                document.getElementById('controller-setup').classList.add('hidden');
-                document.getElementById('controller-active').classList.remove('hidden');
-
-                // 1. 傾き検知 (ジャイロ)
-                let lastSend = 0;
-                window.addEventListener('deviceorientation', (e) => {
-                    const now = Date.now();
-                    if (now - lastSend > 80) { // 負荷軽減のため80ms間隔
-                        set(gameRef, { type: 'move', beta: e.beta, gamma: e.gamma });
-                        lastSend = now;
-                    }
-                });
-
-                // 2. 攻撃ボタン (タップ)
-                const actionBtn = document.getElementById('action-btn');
-                let charge = 0;
-                actionBtn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    set(gameRef, { type: 'attack' });
-                    charge = 0;
-                    document.getElementById('charge-bar').style.width = '0%';
-                    if(navigator.vibrate) navigator.vibrate(100);
-                });
-
-                // 3. シェイク検知 (加速度)
-                let lastX=0, lastY=0;
-                window.addEventListener('devicemotion', (e) => {
-                    const acc = e.accelerationIncludingGravity;
-                    if(!acc) return;
-                    let move = Math.abs(acc.x - lastX) + Math.abs(acc.y - lastY);
-                    if(move > 25) {
-                        charge = Math.min(charge + 5, 100);
-                        document.getElementById('charge-bar').style.width = charge + '%';
-                        set(gameRef, { type: 'shake' });
-                        if(navigator.vibrate) navigator.vibrate(20);
-                    }
-                    lastX = acc.x; lastY = acc.y;
-                });
+            const myRef = ref(db, `rooms/${roomId}/players/${myId}`);
+            
+            // Disconnect handler
+            onDisconnect(myRef).remove();
+            
+            // Listen to game mode
+            onValue(ref(db, `rooms/${roomId}/mode`), (snap) => {
+                const mode = snap.val() || 'lobby';
+                setupUI(mode);
             });
-        }
-    </script>
-</body>
-</html>
+
+            function setupUI(mode) {
+                // Hide all
+                document.getElementById('ui-joystick').classList.add('hidden');
+                document.getElementById('ui-dpad').classList.add('hidden');
+                document.getElementById('ui-simple').classList.add('hidden');
+                document.getElementById('ctrl-title').innerText = mode.toUpperCase();
+
+                if (mode === 'flight3d') {
+                    document.getElementById('ui-joystick').classList.remove('hidden');
+                    startJoystick();
+                } else if (mode === 'shooter2d') {
+                    document.getElementById('ui-dpad').classList.remove('hidden');
+                } else if (['sumo', 'race', 'paint'].includes(mode)) {
+                    document.getElementById('ui-simple').classList.remove('hidden');
+                    document.getElementById('simple-instr').innerText = "TAP FAST!";
+                } else if (mode === 'sniper') {
+                    document.getElementById('ui-simple').classList.remove('hidden');
+                    document.getElementById('simple-instr').innerText = "TILT TO AIM, TAP TO SHOOT";
+                    startGyro();
+                }
+            }
+
+            // --- Input Handlers ---
+            
+            // 1. Joystick
+            function startJoystick() {
+                const zone = document.getElementById('joystick-zone');
+                const knob = document.getElementById('joystick-knob');
+                let startX, startY;
+
+                zone.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    startX = touch.clientX;
+                    startY = touch.clientY;
+                });
+
+                zone.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    const touch = e.touches[0];
+                    let dx = touch.clientX - startX;
+                    let dy = touch.clientY - startY;
+                    
+                    // Clamp
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    const max = 70;
+                    if (dist > max) {
+                        dx = (dx/dist) * max;
+                        dy = (dy/dist) * max;
+                    }
+                    
+                    knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+                    
+                    // Send to Firebase (Normalize -1 to 1)
+                    update(myRef, { 
+                        input: { x: dx/max, y: dy/max }
+                    });
+                });
+
+                zone.addEventListener('touchend', () => {
+                    knob.style.transform = `translate(-50%, -50%)`;
+                    update(myRef, { input: { x: 0, y: 0 } });
+                });
+
+                document.getElementById('btn-boost').addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    update(myRef, { action: true });
+                });
+                document.getElementById('btn-boost').addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    update(myRef, { action: false });
+                });
+            }
+
+            // 2. D-Pad (Shooter)
+            const dirs = { u:0, d:0, l:0, r:0 };
+            ['up','down','left','right'].forEach(d => {
+                const btn = document.getElementById(`d-${d}`);
+                btn.addEventListener('touchstart', (e) => { e.preventDefault(); dirs[d[0]] = 1; sendDirs(); });
+                btn.addEventListener('touchend', (e) => { e.preventDefault(); dirs[d[0]] = 0; sendDirs(); });
+            });
+            function sendDirs() { update(myRef, { input: dirs }); }
+            
+            document.getElementById('btn-fire').addEventListener('touchstart', (e)=>{
+                e.preventDefault(); update(myRef, { action: true });
+            });
+            document.getElementById('btn-fire').addEventListener('touchend', (e)=>{
+                e.preventDefault(); update(myRef, { action: false });
+            });
+
+            // 3. Simple Tap / Gyro
+            document.getElementById('btn-main').addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                update(myRef, { action: true });
+                if(navigator.vibrate) navigator.vibrate(50);
+                setTimeout(()=> update(myRef, { action: false }), 100);
+            });
+
+            function startGyro() {
+                if(typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    document.getElementById('btn-main').innerText = "TAP TO START SENSORS";
+                    document.getElementById('btn-main').onclick = async () => {
+                        await DeviceOrientationEvent.requestPermission();
+                        document.getElementById('btn-main').innerText = "FIRE";
+                        bindGyro();
+                    };
+                } else {
