@@ -26,6 +26,7 @@
             margin: 0;
             overflow: hidden;
             user-select: none;
+            touch-action: manipulation;
         }
 
         .hidden { display: none !important; }
@@ -41,6 +42,7 @@
             box-shadow: 9px 9px 16px var(--shadow-dark), -9px -9px 16px var(--shadow-light);
             padding: 30px;
             text-align: center;
+            max-width: 90%;
         }
 
         .neu-btn {
@@ -56,6 +58,7 @@
             font-size: 1.2rem;
             cursor: pointer;
             transition: all 0.2s ease;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .neu-btn:active, .neu-btn.active {
@@ -74,12 +77,13 @@
             width: 80%;
             margin-bottom: 20px;
             color: var(--text-main);
+            outline: none;
         }
 
         /* --- HOST SCREENS --- */
-        #host-lobby h1 { font-size: 3rem; color: var(--primary); text-shadow: 2px 2px 4px rgba(0,0,0,0.1); }
-        .subject-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 20px; max-height: 50vh; overflow-y: auto; }
-        .subject-card { cursor: pointer; height: 100px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
+        #host-lobby h1 { font-size: 3rem; color: var(--primary); text-shadow: 2px 2px 4px rgba(0,0,0,0.1); margin-bottom: 10px;}
+        .subject-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 20px; max-height: 50vh; overflow-y: auto; padding: 10px; }
+        .subject-card { cursor: pointer; height: 80px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; }
         
         #game-screen { width: 90%; max-width: 1000px; }
         #timer-bar-container {
@@ -92,7 +96,7 @@
             border-radius: 10px; transition: width 0.1s linear;
         }
 
-        #question-text { font-size: 2.5rem; font-weight: 900; margin: 30px 0; min-height: 100px; line-height: 1.4; }
+        #question-text { font-size: 2.2rem; font-weight: 900; margin: 30px 0; min-height: 100px; line-height: 1.4; display:flex; align-items:center; justify-content:center;}
         
         .answer-display { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 100%; }
         .ans-option { 
@@ -100,61 +104,66 @@
             box-shadow: 6px 6px 10px var(--shadow-dark), -6px -6px 10px var(--shadow-light);
             opacity: 0.8;
             display: flex; align-items: center; justify-content: center;
+            transition: transform 0.3s;
         }
-        .ans-option.correct { background-color: var(--success); color: white; opacity: 1; transform: scale(1.05); }
-        .ans-option.dim { opacity: 0.3; }
+        .ans-option.correct { background-color: var(--success); color: white; opacity: 1; transform: scale(1.05); box-shadow: none; }
+        .ans-option.dim { opacity: 0.2; transform: scale(0.95); }
 
         /* --- CONTROLLER SCREENS --- */
         #controller-view { background: #333; color: white; }
+        .ctl-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; width:90%; height:60vh; }
         .ctl-btn { 
-            width: 100%; height: 100px; margin-bottom: 20px; border-radius: 15px; border: none; 
-            font-size: 2rem; font-weight: bold; color: white;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            width: 100%; height: 100%; border-radius: 20px; border: none; 
+            font-size: 3rem; font-weight: bold; color: white;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            display: flex; align-items: center; justify-content: center;
         }
-        .ctl-btn:active { transform: scale(0.95); }
+        .ctl-btn:active { transform: scale(0.92); box-shadow: 0 5px 10px rgba(0,0,0,0.3); }
+        .ctl-btn:disabled { filter: grayscale(100%); opacity: 0.4; cursor: not-allowed; transform: none; }
         
         .c-red { background: #ff5252; } .c-blue { background: #448aff; }
-        .c-green { background: #69f0ae; color: #333; } .c-yellow { background: #ffd740; color: #333; }
+        .c-yellow { background: #ffd740; color: #333; } .c-green { background: #69f0ae; color: #333; }
 
         /* --- RESULT --- */
         .ranking-item { 
             display: flex; justify-content: space-between; padding: 15px; 
             border-bottom: 1px solid rgba(0,0,0,0.1); font-size: 1.5rem; 
         }
-        .ranking-item:nth-child(1) { color: #d4af37; font-weight: bold; font-size: 2rem; }
+        .ranking-item:nth-child(1) { color: #d4af37; font-weight: bold; font-size: 2rem; text-shadow: 1px 1px 0px rgba(0,0,0,0.2); }
+
+        /* Error Message */
+        #error-msg { color: var(--danger); font-weight: bold; margin-top: 20px; font-size: 14px; }
     </style>
 </head>
 <body>
 
-    <div id="room-info" style="position:fixed; top:10px; left:10px; opacity:0.5; font-size:12px;">Connecting...</div>
-
-    <div id="loading-screen" class="full-screen" style="z-index: 999; background: var(--bg-color);">
-        <h2>読み込み中...</h2>
-    </div>
+    <div id="room-info" style="position:fixed; top:10px; left:10px; opacity:0.5; font-size:12px; z-index:1000;">Loading...</div>
 
     <div id="host-lobby" class="full-screen hidden">
         <div class="neu-box">
             <h1>GAKU-QUIZ</h1>
-            <div style="display:flex; justify-content:center; gap:30px; align-items:center;">
-                <div id="qrcode" style="padding:10px; background:white; border-radius:10px;"></div>
-                <div style="text-align:left;">
-                    <p style="font-size:1.2rem;">スマホで参加してね！</p>
-                    <h2 id="player-count">参加者: 0人</h2>
+            <div style="display:flex; flex-direction:column; align-items:center; gap:20px;">
+                <div id="qrcode" style="padding:15px; background:white; border-radius:15px; box-shadow: inset 0 0 10px rgba(0,0,0,0.1);"></div>
+                <div>
+                    <p style="font-size:1.1rem; margin-bottom:5px;">スマホのカメラでスキャン</p>
+                    <h2 id="player-count" style="color:var(--primary);">参加者: 0人</h2>
                 </div>
             </div>
+            <div id="error-msg"></div>
             
-            <h3 style="margin-top:30px;">教科を選択してスタート</h3>
+            <h3 style="margin-top:30px; border-bottom: 2px solid #ccc; padding-bottom:5px;">教科を選択</h3>
             <div class="subject-grid" id="subject-selector">
-                </div>
+                <div>読み込み中...</div>
+            </div>
         </div>
     </div>
 
     <div id="host-game" class="full-screen hidden">
         <div id="game-screen" class="neu-box">
-            <h2 id="current-subject" style="color:var(--primary); margin:0;">教科名</h2>
-            <div id="question-counter" style="color:#888;">第 1 問</div>
+            <h2 id="current-subject" style="color:var(--primary); margin:0;">教科</h2>
+            <div id="question-counter" style="color:#888;">Q 1</div>
             
-            <div id="question-text">問題文</div>
+            <div id="question-text">Loading Question...</div>
             
             <div id="timer-bar-container">
                 <div id="timer-bar"></div>
@@ -170,30 +179,32 @@
     </div>
 
     <div id="host-result" class="full-screen hidden">
-        <div class="neu-box" style="min-width: 500px;">
-            <h1 id="result-title">結果発表</h1>
-            <div id="ranking-list" style="text-align:left; max-height: 400px; overflow-y:auto;">
+        <div class="neu-box" style="width: 80%; max-width:600px;">
+            <h1 id="result-title">🏆 結果発表 🏆</h1>
+            <div id="ranking-list" style="text-align:left; max-height: 400px; overflow-y:auto; padding:10px;">
                 </div>
-            <button class="neu-btn" onclick="location.reload()">タイトルへ戻る</button>
+            <button class="neu-btn" onclick="location.reload()" style="margin-top:20px;">タイトルへ戻る</button>
         </div>
     </div>
 
-    <div id="ctrl-login" class="full-screen hidden" style="background:var(--bg-color);">
+    <div id="ctrl-login" class="full-screen hidden">
         <div class="neu-box">
-            <h2>名前を入れてね</h2>
+            <h2>名前を入力</h2>
             <input type="text" id="p-name" class="neu-input" placeholder="ニックネーム" maxlength="8">
             <br>
             <button class="neu-btn" onclick="joinGame()">参加する</button>
         </div>
     </div>
 
-    <div id="ctrl-wait" class="full-screen hidden" style="background:#222; color:white;">
-        <h2>WAITING...</h2>
-        <p>ホストが教科を選んでいます</p>
+    <div id="ctrl-wait" class="full-screen hidden" style="background:#2c3e50; color:white;">
+        <div style="text-align:center;">
+            <h2 style="font-size:2rem;">WAITING...</h2>
+            <p id="wait-text">ホストの操作を待っています</p>
+        </div>
     </div>
 
-    <div id="ctrl-buttons" class="full-screen hidden">
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; width:90%; height:90%;">
+    <div id="ctrl-buttons" class="full-screen hidden" style="background:#222;">
+        <div class="ctl-grid">
             <button class="ctl-btn c-red" onclick="sendAns(0)">A</button>
             <button class="ctl-btn c-blue" onclick="sendAns(1)">B</button>
             <button class="ctl-btn c-yellow" onclick="sendAns(2)">C</button>
@@ -205,6 +216,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
         import { getDatabase, ref, update, onValue, onDisconnect, set, remove } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
 
+        // Firebase設定
         const firebaseConfig = {
             apiKey: "AIzaSyDbZzTMvUkG2LXIGY4ux0KBTmnAdqP236s",
             authDomain: "game-4f2d9.firebaseapp.com",
@@ -212,65 +224,73 @@
             projectId: "game-4f2d9"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-        
+        let app, db;
+        try {
+            app = initializeApp(firebaseConfig);
+            db = getDatabase(app);
+        } catch(e) {
+            alert("Firebase接続エラー: インターネット接続を確認してください");
+        }
+
         // --- GLOBAL VARIABLES ---
         let QUIZ_DATABASE = null;
-        
         const params = new URLSearchParams(window.location.search);
         let role = params.get('role');
         let roomId = params.get('room');
         const myId = Math.random().toString(36).substr(2, 6);
-        let currentSubject = null;
         let qList = [];
         let qIndex = 0;
         let timerId = null;
 
-        // --- FETCH DATA ---
-        async function loadQuizData() {
-            try {
-                const response = await fetch('quiz_data.json');
-                if (!response.ok) throw new Error("File not found");
-                QUIZ_DATABASE = await response.json();
-                document.getElementById('loading-screen').classList.add('hidden');
-                
-                // Start Logic
-                if (!role) {
-                    roomId = Math.random().toString(36).substring(2, 6).toUpperCase();
-                    window.location.replace(`?role=host&room=${roomId}`);
-                } else if (role === 'host') {
-                    initHost();
-                } else {
-                    initClient();
-                }
-            } catch (error) {
-                alert("エラー：quiz_data.jsonを読み込めませんでした。\n※PCで動かす場合はVS CodeのLive Serverなどを使ってください。");
-                console.error(error);
-            }
+        // --- MAIN ENTRY POINT ---
+        // ロール判定を最初に行い、スマホならJSONを読み込ませない（バグ回避）
+        if (!role) {
+            // Roleなし -> ホストとして初期化（リダイレクト）
+            roomId = Math.random().toString(36).substring(2, 6).toUpperCase();
+            window.location.replace(`?role=host&room=${roomId}`);
+        } else if (role === 'host') {
+            document.getElementById('room-info').innerText = `HOST ID: ${roomId}`;
+            initHost(); // ホストはJSON読み込みが必要
+        } else {
+            document.getElementById('room-info').innerText = `CLIENT`;
+            initClient(); // クライアントはJSON不要
         }
-
-        // Start Loading
-        loadQuizData();
 
         // =======================
         //      HOST LOGIC
         // =======================
-        function initHost() {
+        async function initHost() {
             document.getElementById('host-lobby').classList.remove('hidden');
-            document.getElementById('room-info').innerText = `ID: ${roomId}`;
 
+            // 1. QRコード生成
+            // 重要: PCのローカルIPやfile://はスマホから見えません。Webサーバーが必要です。
             const url = `${window.location.origin}${window.location.pathname}?role=ctrl&room=${roomId}`;
-            new QRCode(document.getElementById("qrcode"), { text: url, width: 120, height: 120 });
+            new QRCode(document.getElementById("qrcode"), { text: url, width: 150, height: 150 });
+            
+            // 警告: file:// で開いている場合
+            if(window.location.protocol === 'file:') {
+                document.getElementById('error-msg').innerHTML = "⚠ 注意: ローカルファイル(file://)で開いています。<br>スマホから接続するにはVS CodeのLive Server等を使用してください。";
+            }
 
+            // 2. DB初期化
             update(ref(db, `rooms/${roomId}`), { status: 'lobby', qIndex: -1 });
             remove(ref(db, `rooms/${roomId}/players`));
 
-            const selector = document.getElementById('subject-selector');
-            selector.innerHTML = '';
-            
-            // Generate Buttons from JSON
-            if(QUIZ_DATABASE) {
+            // 3. プレイヤー監視
+            onValue(ref(db, `rooms/${roomId}/players`), (snap) => {
+                const players = snap.val() || {};
+                document.getElementById('player-count').innerText = `参加者: ${Object.keys(players).length}人`;
+            });
+
+            // 4. JSONデータの読み込み
+            try {
+                const response = await fetch('quiz_data.json');
+                if (!response.ok) throw new Error("JSON Not Found");
+                QUIZ_DATABASE = await response.json();
+                
+                // ボタン生成
+                const selector = document.getElementById('subject-selector');
+                selector.innerHTML = '';
                 Object.keys(QUIZ_DATABASE).forEach(key => {
                     const sub = QUIZ_DATABASE[key];
                     const div = document.createElement('div');
@@ -279,16 +299,20 @@
                     div.onclick = () => startSubject(key);
                     selector.appendChild(div);
                 });
-            }
 
-            onValue(ref(db, `rooms/${roomId}/players`), (snap) => {
-                const players = snap.val() || {};
-                document.getElementById('player-count').innerText = `参加者: ${Object.keys(players).length}人`;
-            });
+            } catch (error) {
+                console.error(error);
+                document.getElementById('subject-selector').innerHTML = `
+                    <div style="grid-column: 1/-1; color:red;">
+                        エラー: quiz_data.json が読み込めません。<br>
+                        サーバー経由で開いていますか？
+                    </div>`;
+            }
         }
 
-        function startSubject(key) {
-            currentSubject = QUIZ_DATABASE[key];
+        window.startSubject = (key) => {
+            if(!QUIZ_DATABASE) return;
+            const currentSubject = QUIZ_DATABASE[key];
             qList = currentSubject.questions;
             qIndex = 0;
             
@@ -297,7 +321,7 @@
             document.getElementById('current-subject').innerText = currentSubject.name;
             
             runQuestion();
-        }
+        };
 
         function runQuestion() {
             if (qIndex >= qList.length) {
@@ -306,15 +330,19 @@
             }
 
             const q = qList[qIndex];
-            document.getElementById('question-counter').innerText = `第 ${qIndex + 1} / ${qList.length} 問`;
+            
+            // UI更新
+            document.getElementById('question-counter').innerText = `Q ${qIndex + 1} / ${qList.length}`;
             document.getElementById('question-text').innerText = q.q;
             
+            // 選択肢のリセット
             q.opts.forEach((txt, i) => {
                 const el = document.getElementById(`opt-${i}`);
                 el.innerText = txt;
-                el.className = 'ans-option';
+                el.className = 'ans-option'; // クラスリセット
             });
 
+            // DB更新（クライアントへ通知）
             update(ref(db, `rooms/${roomId}`), {
                 status: 'question',
                 startTime: Date.now(),
@@ -322,12 +350,13 @@
                 qIndex: qIndex
             });
 
+            // タイマー始動
             let timeLeft = q.time;
             const bar = document.getElementById('timer-bar');
             bar.style.width = '100%';
             bar.style.background = 'linear-gradient(90deg, #4d79ff, #00b894)';
 
-            clearInterval(timerId);
+            if(timerId) clearInterval(timerId); // 古いタイマーを消す
             timerId = setInterval(() => {
                 timeLeft -= 0.1;
                 const pct = (timeLeft / q.time) * 100;
@@ -346,16 +375,19 @@
             const q = qList[qIndex];
             const correctIdx = q.ans;
             
+            // 正解表示
             document.getElementById(`opt-${correctIdx}`).classList.add('correct');
             [0,1,2,3].forEach(i => {
                 if (i !== correctIdx) document.getElementById(`opt-${i}`).classList.add('dim');
             });
 
+            // DB更新（クライアント操作ロック）
             update(ref(db, `rooms/${roomId}`), { status: 'result' });
 
+            // 集計処理（少し待ってから実行）
             setTimeout(() => {
                 gradeAndNext();
-            }, 4000); // 4秒後に次へ
+            }, 3000); 
         }
 
         function gradeAndNext() {
@@ -367,11 +399,13 @@
                 Object.keys(players).forEach(pid => {
                     const p = players[pid];
                     let currentScore = p.score || 0;
-                    if (p.lastAns === q.ans) {
+                    
+                    // lastAnsが存在し、かつ正解と一致するか
+                    if (p.lastAns !== undefined && p.lastAns === q.ans) {
                         currentScore += 10;
                     }
                     updates[`${pid}/score`] = currentScore;
-                    updates[`${pid}/lastAns`] = null;
+                    updates[`${pid}/lastAns`] = null; // 次のためにリセット
                 });
                 
                 update(ref(db, `rooms/${roomId}/players`), updates).then(() => {
@@ -387,7 +421,7 @@
             
             update(ref(db, `rooms/${roomId}`), { status: 'finish' });
             
-            confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+            confetti({ particleCount: 200, spread: 80, origin: { y: 0.6 } });
 
             onValue(ref(db, `rooms/${roomId}/players`), (snap) => {
                 const players = snap.val() || {};
@@ -399,12 +433,7 @@
                 sorted.forEach((p, i) => {
                     const div = document.createElement('div');
                     div.className = 'ranking-item';
-                    
-                    let icon = '';
-                    if (i === 0) icon = '👑 ';
-                    else if (i === 1) icon = '🥈 ';
-                    else if (i === 2) icon = '🥉 ';
-
+                    let icon = i === 0 ? '👑 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : ' ';
                     div.innerHTML = `<span>${icon}${i+1}. ${p.name}</span> <span>${p.score}pt</span>`;
                     list.appendChild(div);
                 });
@@ -415,6 +444,7 @@
         //      CLIENT LOGIC
         // =======================
         function initClient() {
+            // クライアントはJSON読み込みを待たずに即座にログイン画面を表示
             document.getElementById('ctrl-login').classList.remove('hidden');
         }
 
@@ -427,47 +457,55 @@
                 score: 0,
                 lastAns: null
             });
-            onDisconnect(myRef).remove();
+            onDisconnect(myRef).remove(); // 切断時に削除
 
             document.getElementById('ctrl-login').classList.add('hidden');
             document.getElementById('ctrl-wait').classList.remove('hidden');
 
+            // ゲーム状態の監視
             onValue(ref(db, `rooms/${roomId}`), (snap) => {
                 const state = snap.val();
-                if (!state) return;
+                if (!state) {
+                    alert("部屋が存在しません。QRコードを読み直してください。");
+                    return;
+                }
 
                 if (state.status === 'lobby') {
-                    showScreen('ctrl-wait');
+                    showClientScreen('ctrl-wait');
+                    document.getElementById('wait-text').innerText = "ホストが準備中です...";
                 } else if (state.status === 'question') {
-                    showScreen('ctrl-buttons');
+                    showClientScreen('ctrl-buttons');
                     enableButtons(true);
                 } else if (state.status === 'result') {
                     enableButtons(false);
+                    // ここで〇✕を表示することも可能
                 } else if (state.status === 'finish') {
-                    showScreen('ctrl-wait');
-                    document.querySelector('#ctrl-wait h2').innerText = "終了！";
-                    document.querySelector('#ctrl-wait p').innerText = "結果発表中...";
+                    showClientScreen('ctrl-wait');
+                    document.getElementById('wait-text').innerText = "結果発表中！\nホスト画面を見てね";
                 }
             });
-        }
+        };
 
-        function showScreen(id) {
+        function showClientScreen(id) {
             ['ctrl-login', 'ctrl-wait', 'ctrl-buttons'].forEach(i => document.getElementById(i).classList.add('hidden'));
             document.getElementById(id).classList.remove('hidden');
         }
 
         window.sendAns = (idx) => {
             if (navigator.vibrate) navigator.vibrate(50);
-            enableButtons(false);
+            enableButtons(false); // 連打防止
             update(ref(db, `rooms/${roomId}/players/${myId}`), { lastAns: idx });
-        }
+        };
 
         function enableButtons(on) {
             const btns = document.querySelectorAll('.ctl-btn');
             btns.forEach(b => {
                 b.disabled = !on;
-                b.style.opacity = on ? 1 : 0.5;
-                if(on) b.style.transform = "scale(1)";
+                if(on) {
+                    b.style.transform = "scale(1)";
+                    b.style.opacity = "1";
+                    b.style.filter = "none";
+                }
             });
         }
 
