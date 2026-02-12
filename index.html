@@ -2,158 +2,300 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JOY-CON WEREWOLF: ULTIMATE</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        :root { --neon-red: #ff003c; --neon-blue: #00e5ff; --gold: #ffd700; }
-        body { background: #050505; color: white; font-family: 'Press Start 2P', cursive, sans-serif; margin: 0; overflow: hidden; }
-        
-        /* メインステージ */
-        #stage { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle, #1a1a2e 0%, #000 100%); }
-        
-        /* プレイヤーの円陣 */
-        .player-ring { position: relative; width: 700px; height: 700px; border-radius: 50%; border: 1px solid rgba(0,229,255,0.2); transition: all 1s ease; }
-        .p-node { position: absolute; width: 100px; transition: all 0.5s; }
-        .joycon-visual { width: 40px; height: 100px; border-radius: 12px; margin: 0 auto; border: 3px solid #333; position: relative; box-shadow: 0 0 15px rgba(0,0,0,0.5); }
-        .p-name { font-size: 10px; margin-top: 10px; text-shadow: 0 0 5px #fff; }
+        :root { --red: #ff003c; --blue: #00e5ff; --dark: #0a0a0c; --gold: #ffd700; }
+        body { background: var(--dark); color: white; font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; text-align: center; overflow-x: hidden; }
+        .screen { display: none; min-height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
+        .active { display: flex; }
 
-        /* レーザー（投票ポインティング） */
-        .laser { position: absolute; height: 2px; transform-origin: left center; pointer-events: none; z-index: 5; opacity: 0; transition: opacity 0.2s; }
+        /* UI Parts */
+        .btn { background: var(--red); color: white; border: none; padding: 15px 40px; border-radius: 50px; font-size: 1.2rem; font-weight: bold; cursor: pointer; margin: 10px; transition: 0.3s; box-shadow: 0 0 20px rgba(255,0,60,0.4); }
+        .btn:hover { transform: scale(1.05); filter: brightness(1.2); }
+        .btn-blue { background: var(--blue); box-shadow: 0 0 20px rgba(0,229,255,0.4); }
+        .card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 30px; border-radius: 20px; backdrop-filter: blur(10px); width: 90%; max-width: 500px; }
 
-        /* 特殊エフェクト */
-        .panic-mode { animation: panic 0.1s infinite; }
-        @keyframes panic { 0% { filter: hue-rotate(0deg); } 100% { filter: hue-rotate(360deg); } }
+        /* Host: Player Ring */
+        #player-orbit { position: relative; width: 500px; height: 500px; margin: 40px auto; border: 1px dashed rgba(255,255,255,0.2); border-radius: 50%; }
+        .p-node { position: absolute; transform: translate(-50%, -50%); transition: 0.5s; }
+        .p-avatar { width: 60px; height: 60px; border-radius: 15px; border: 3px solid #444; background: #222; margin-bottom: 5px; }
+        .p-node.target .p-avatar { border-color: var(--red); box-shadow: 0 0 30px var(--red); animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
 
-        /* UIパネル */
-        #ui-top { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); text-align: center; }
-        #phase-display { font-size: 40px; color: var(--neon-red); text-shadow: 0 0 20px var(--neon-red); }
-        #log-panel { position: absolute; bottom: 20px; left: 20px; width: 300px; font-size: 10px; color: #00e5ff; background: rgba(0,0,0,0.5); padding: 10px; }
+        /* Player: Voting */
+        .vote-btn { background: transparent; border: 2px solid var(--blue); color: var(--blue); width: 100%; padding: 10px; margin: 5px 0; border-radius: 10px; cursor: pointer; }
+        .vote-btn.selected { background: var(--blue); color: black; }
+
+        #qrcode { background: white; padding: 10px; border-radius: 10px; margin: 20px; }
+        #announcement { font-size: 2rem; font-weight: bold; color: var(--gold); min-height: 3rem; }
     </style>
 </head>
 <body>
 
-<div id="stage">
-    <div id="ui-top">
-        <div id="phase-display">WAITING...</div>
-        <div id="room-info">ROOM ID: <span id="room-id">----</span></div>
+<!-- 1. トップ画面 -->
+<div id="screen-top" class="screen active">
+    <h1 style="font-size: 3rem; letter-spacing: 5px;">JOY-CON<br><span style="color:var(--red)">WEREWOLF</span></h1>
+    <div class="card">
+        <button class="btn" onclick="initHost()">部屋を作る (PC/Host)</button>
+        <button class="btn btn-blue" onclick="showScreen('screen-player-join')">参加する (Smartphone)</button>
     </div>
+</div>
 
-    <div class="player-ring" id="ring">
-        <!-- プレイヤーが動的に配置される -->
+<!-- 2. プレイヤー参加画面 -->
+<div id="screen-player-join" class="screen">
+    <div class="card">
+        <h2>JOIN GAME</h2>
+        <input type="text" id="p-name" placeholder="あなたの名前" style="width:80%; padding:15px; margin-bottom:20px; border-radius:10px; border:none;">
+        <input type="text" id="p-room" placeholder="ルームID" style="width:80%; padding:15px; margin-bottom:20px; border-radius:10px; border:none;">
+        <button class="btn" onclick="playerJoin()">入室する</button>
     </div>
+</div>
 
-    <div id="log-panel">SYSTEM READY...</div>
-
-    <div id="qr-area" style="position: absolute; top: 20px; right: 20px; background: white; padding: 10px; border-radius: 10px;">
-        <div id="qrcode"></div>
+<!-- 3. ホスト：ロビー画面 -->
+<div id="screen-host-lobby" class="screen">
+    <h1>ROOM ID: <span id="display-room-id" style="color:var(--blue)">----</span></h1>
+    <div id="qrcode"></div>
+    <div class="card">
+        <h3>参加プレイヤー (<span id="p-count">0</span>)</h3>
+        <div id="host-p-list" style="display:flex; flex-wrap:wrap; justify-content:center; gap:10px;"></div>
+        <hr style="margin:20px 0; border:0.5px solid #444;">
+        <button class="btn btn-blue" onclick="connectHID()">JOY-CONを同期</button>
+        <button class="btn" onclick="startGame()">ゲーム開始</button>
     </div>
+</div>
 
-    <div style="position: absolute; bottom: 20px; right: 20px;">
-        <button onclick="connectHID()" style="padding: 10px; background: var(--neon-blue); border: none; cursor: pointer;">JOY-CONを同期</button>
-        <button onclick="nextPhase()" style="padding: 10px; background: var(--neon-red); border: none; cursor: pointer; color: white;">フェーズ進捗</button>
+<!-- 4. ホスト：メインゲーム画面 -->
+<div id="screen-host-main" class="screen">
+    <div id="announcement">議論を開始してください</div>
+    <div id="player-orbit">
+        <!-- プレイヤーが円状に配置される -->
+    </div>
+    <div class="card" style="position:fixed; bottom:20px; left:50%; transform:translateX(-50%); flex-direction:row;">
+        <button class="btn btn-blue" onclick="changePhase('voting')">投票開始</button>
+        <button class="btn" onclick="processReverseSilence()">結果発表 (物理衝撃)</button>
+    </div>
+</div>
+
+<!-- 5. プレイヤー：ゲーム操作画面 -->
+<div id="screen-player-game" class="screen">
+    <div class="card">
+        <h2 id="p-role-display" style="color:var(--gold)">役職を確認中...</h2>
+        <p id="p-status">待機してください</p>
+        <div id="player-vote-area" class="hidden">
+            <p>怪しいと思う人を選べ：</p>
+            <div id="vote-list"></div>
+        </div>
     </div>
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
-    import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+    import { getDatabase, ref, set, onValue, update, push, get } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
 
-    const firebaseConfig = { /* 省略：前のコードと同じ */ };
+    // --- Firebase設定（ここにあなたの情報を入れてください） ---
+    const firebaseConfig = {
+        apiKey: "AIzaSy...",
+        authDomain: "game-4f2d9.firebaseapp.com",
+        databaseURL: "https://game-4f2d9-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "game-4f2d9",
+    };
+
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
-    const roomId = Math.random().toString(36).substring(2, 6).toUpperCase();
-    document.getElementById('room-id').innerText = roomId;
+    let roomId = "";
+    let myId = "";
+    let joycons = []; // ホスト用：HIDデバイス配列
 
-    let players = {};
-    let joyconMap = new Map(); // PlayerID -> HID Device
+    // --- 画面遷移 ---
+    window.showScreen = (id) => {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    };
 
-    // QRコード
-    new QRCode(document.getElementById("qrcode"), { text: `${window.location.origin}${window.location.pathname}?r=${roomId}`, width: 80, height: 80 });
+    // --- ホスト：初期化 ---
+    window.initHost = () => {
+        roomId = Math.random().toString(36).substring(2, 6).toUpperCase();
+        document.getElementById('display-room-id').innerText = roomId;
+        const url = `${window.location.origin}${window.location.pathname}?r=${roomId}`;
+        new QRCode(document.getElementById("qrcode"), { text: url, width: 120, height: 120 });
+        showScreen('screen-host-lobby');
 
-    // --- 究極のWeb HID 制御 ---
+        onValue(ref(db, `rooms/${roomId}/players`), (snap) => {
+            const players = snap.val() || {};
+            const list = document.getElementById('host-p-list');
+            list.innerHTML = '';
+            const ids = Object.keys(players);
+            document.getElementById('p-count').innerText = ids.length;
+            ids.forEach(id => {
+                const p = players[id];
+                list.innerHTML += `<div style="padding:10px; background:${p.color}; border-radius:5px; color:black; font-weight:bold;">${p.name}</div>`;
+            });
+            updateOrbit(players);
+        });
+    };
+
+    // --- ホスト：HID同期 ---
     window.connectHID = async () => {
         const devices = await navigator.hid.requestDevice({
             filters: [{ vendorId: 0x057e, productId: 0x2006 }, { vendorId: 0x057e, productId: 0x2007 }]
         });
-        
         for (const device of devices) {
             await device.open();
-            // ジャイロと振動をフルパワーで有効化
-            await device.sendReport(0x01, new Uint8Array([0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0x40, 0x01])); // Enable IMU
-            await device.sendReport(0x01, new Uint8Array([0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0x30, 0x03])); // Standard full mode
-            
-            const side = device.productId === 0x2006 ? 'L' : 'R';
-            joyconMap.set(side, device); // 実際は参加順に紐付け
-            
-            // 接続完了の「鼓動」振動
-            sendRumble(device, "heartbeat");
-            addLog(`${device.productName} 接続完了`);
-
-            // ジャイロデータの受信とポインティング
-            device.oninputreport = (e) => handleJoyconData(device, e);
+            // 振動有効化
+            await device.sendReport(0x01, new Uint8Array([0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0x40, 0x01]));
+            joycons.push(device);
+            // 接続確認振動
+            sendRumble(device, true);
         }
+        alert(`${joycons.length} 台のジョイコンを同期しました。参加順に割り当てられます。`);
     };
 
-    function handleJoyconData(device, event) {
-        const data = new DataView(event.data.buffer);
-        // ボタン取得
-        const btn = data.getUint8(3);
-        if (btn & 0x08) { // X or Up button
-            addLog("VOTE TRIGGERED!");
-            sendRumble(device, "click");
-        }
-        
-        // ジャイロによる傾き検知（ポインティングのシミュレーション）
-        const gyroY = data.getInt16(19, true); 
-        // この値をFirebaseに送ってレーザーを表示させる
-    }
+    // --- プレイヤー：参加 ---
+    window.playerJoin = async () => {
+        const name = document.getElementById('p-name').value;
+        roomId = document.getElementById('p-room').value.toUpperCase();
+        if (!name || !roomId) return alert("名前と部屋IDを入れてね");
 
-    // --- 物理振動演出（HD振動を模倣） ---
-    async function sendRumble(device, type) {
-        let rumbleData;
-        if (type === "heartbeat") {
-            rumbleData = new Uint8Array([0x10, 0x00, 0x01, 0x40, 0x40, 0x00, 0x01, 0x40, 0x40]);
-        } else if (type === "die") {
-            rumbleData = new Uint8Array([0x10, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]); // 強烈な振動
-        } else {
-            rumbleData = new Uint8Array([0x10, 0x00, 0x50, 0x40, 0x40, 0x00, 0x50, 0x40, 0x40]);
-        }
-        await device.sendReport(0x01, rumbleData);
-    }
+        myId = "p_" + Math.random().toString(36).substring(2, 9);
+        await set(ref(db, `rooms/${roomId}/players/${myId}`), {
+            name: name,
+            color: `hsl(${Math.random() * 360}, 70%, 60%)`,
+            role: "waiting",
+            alive: true,
+            votedFor: ""
+        });
+        showScreen('screen-player-game');
+        listenToGame();
+    };
 
-    // --- ゲーム同期 ---
-    onValue(ref(db, `rooms/${roomId}/players`), (snapshot) => {
-        players = snapshot.val() || {};
-        const ring = document.getElementById('ring');
-        ring.innerHTML = '<div id="center-ui"></div>'; // クリア
+    // --- ゲームロジック：逆転の静寂 (Reverse Silence) ---
+    window.processReverseSilence = async () => {
+        const snap = await get(ref(db, `rooms/${roomId}/players`));
+        const players = snap.val();
+        const ids = Object.keys(players);
         
+        // 投票集計
+        let counts = {};
+        ids.forEach(id => {
+            const v = players[id].votedFor;
+            if (v) counts[v] = (counts[v] || 0) + 1;
+        });
+
+        const maxVotes = Math.max(...Object.values(counts), 0);
+        const targets = ids.filter(id => counts[id] === maxVotes && maxVotes > 0);
+
+        document.getElementById('announcement').innerText = "運命の裁定...";
+
+        // ジョイコンへの物理フィードバック
+        ids.forEach((id, index) => {
+            const device = joycons[index];
+            if (!device) return;
+
+            if (targets.includes(id)) {
+                // 最多得票者：静寂
+                console.log(id + " is silent");
+            } else {
+                // それ以外：激しい振動
+                triggerIntenseRumble(device);
+            }
+        });
+
+        // 画面演出
+        setTimeout(() => {
+            targets.forEach(tid => {
+                document.getElementById(`p-node-${tid}`).classList.add('target');
+                update(ref(db, `rooms/${roomId}/players/${tid}`), { alive: false });
+            });
+            document.getElementById('announcement').innerText = targets.length > 0 ? "処刑執行" : "平和な夜...";
+        }, 1000);
+    };
+
+    // --- ユーティリティ ---
+    function updateOrbit(players) {
+        const orbit = document.getElementById('player-orbit');
+        orbit.innerHTML = '';
         const ids = Object.keys(players);
         ids.forEach((id, i) => {
-            const p = players[id];
             const angle = (i / ids.length) * 2 * Math.PI;
-            const x = Math.cos(angle) * 300;
-            const y = Math.sin(angle) * 300;
-
+            const x = Math.cos(angle) * 200 + 250;
+            const y = Math.sin(angle) * 200 + 250;
             const div = document.createElement('div');
-            div.className = `p-node ${p.alive ? '' : 'dead'}`;
-            div.style.left = `calc(50% + ${x}px - 50px)`;
-            div.style.top = `calc(50% + ${y}px - 60px)`;
-            div.innerHTML = `
-                <div class="joycon-visual" style="background:${p.color}; box-shadow: 0 0 20px ${p.color}">
-                    <div style="position:absolute; top:10px; left:50%; transform:translateX(-50%); color:white; font-size:8px;">${p.role==='人狼'?'☠️':''}</div>
-                </div>
-                <div class="p-name">${p.name}</div>
-            `;
-            ring.appendChild(div);
+            div.className = 'p-node';
+            div.id = `p-node-${id}`;
+            div.style.left = x + 'px';
+            div.style.top = y + 'px';
+            div.innerHTML = `<div class="p-avatar" style="background:${players[id].color}"></div><div style="font-size:10px">${players[id].name}</div>`;
+            orbit.appendChild(div);
         });
-    });
-
-    function addLog(msg) {
-        const log = document.getElementById('log-panel');
-        log.innerHTML = `> ${msg}<br>` + log.innerHTML;
     }
 
-    window.nextPhase = () => { /* フェーズ切り替えロジック：前のコードを強化 */ };
+    async function triggerIntenseRumble(device) {
+        // 強烈な振動パケット
+        const rumbleData = new Uint8Array([0x10, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]);
+        let i = 0;
+        const timer = setInterval(() => {
+            device.sendReport(0x01, rumbleData);
+            if (i++ > 20) {
+                clearInterval(timer);
+                device.sendReport(0x01, new Uint8Array([0x10, 0x00, 0,0,0,0, 0,0,0,0]));
+            }
+        }, 50);
+    }
+
+    async function sendRumble(device, short) {
+        const rumbleData = new Uint8Array([0x10, 0x00, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40]);
+        await device.sendReport(0x01, rumbleData);
+        setTimeout(() => device.sendReport(0x01, new Uint8Array([0x10,0,0,0,0,0,0,0,0,0])), 200);
+    }
+
+    function listenToGame() {
+        onValue(ref(db, `rooms/${roomId}/players/${myId}`), (snap) => {
+            const p = snap.val();
+            if (p.role !== "waiting") {
+                document.getElementById('p-role-display').innerText = "あなたの役職: " + p.role;
+                document.getElementById('p-status').innerText = p.alive ? "生存" : "死亡 (幽霊)";
+            }
+        });
+        // 投票リストの更新
+        onValue(ref(db, `rooms/${roomId}/players`), (snap) => {
+            const players = snap.val();
+            const list = document.getElementById('vote-list');
+            list.innerHTML = '';
+            Object.keys(players).forEach(id => {
+                if (id === myId) return;
+                const b = document.createElement('button');
+                b.className = 'vote-btn';
+                b.innerText = players[id].name;
+                b.onclick = () => {
+                    update(ref(db, `rooms/${roomId}/players/${myId}`), { votedFor: id });
+                    alert(players[id].name + " に投票しました");
+                };
+                list.appendChild(b);
+            });
+        });
+    }
+
+    window.startGame = () => {
+        showScreen('screen-host-main');
+        // 役職配布
+        get(ref(db, `rooms/${roomId}/players`)).then(snap => {
+            const ids = Object.keys(snap.val());
+            const roles = ["人狼", "占い師"];
+            while(roles.length < ids.length) roles.push("村人");
+            roles.sort(() => Math.random() - 0.5);
+            ids.forEach((id, i) => update(ref(db, `rooms/${roomId}/players/${id}`), { role: roles[i] }));
+        });
+    };
+
+    // URLからの自動入室
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('r')) {
+        document.getElementById('p-room').value = params.get('r');
+        showScreen('screen-player-join');
+    }
+
 </script>
 </body>
 </html>
