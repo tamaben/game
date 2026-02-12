@@ -3,75 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Joy-Con Werewolf Ultimate</title>
+    <title>Joy-Con Werewolf Online</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        :root { --main-red: #e60012; --bg-dark: #121212; }
-        body { font-family: 'Inter', sans-serif; background: var(--bg-dark); color: white; margin: 0; text-align: center; }
+        :root { --nintendo-red: #e60012; --nintendo-blue: #00bdff; --dark: #1a1a1b; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--dark); color: white; margin: 0; overflow-x: hidden; }
+        .container { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; box-sizing: border-box; }
+        
+        /* UI Components */
+        .card { background: #2d2d2e; border-radius: 15px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; max-width: 500px; text-align: center; }
+        .btn { background: var(--nintendo-red); color: white; border: none; padding: 15px 30px; border-radius: 50px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin: 10px; transition: 0.2s; }
+        .btn:active { transform: scale(0.95); }
+        .btn-blue { background: var(--nintendo-blue); }
+        
+        /* Player List */
+        .player-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 15px; width: 100%; margin-top: 20px; }
+        .player-dot { width: 80px; height: 80px; border-radius: 20px; margin: 0 auto 10px; border: 4px solid #444; position: relative; transition: 0.3s; }
+        .player-dot.active { border-color: #fff; box-shadow: 0 0 20px rgba(255,255,255,0.5); }
+        .player-name { font-size: 0.9rem; font-weight: bold; }
+
+        /* Role Display */
+        .role-box { font-size: 2rem; color: var(--nintendo-red); margin: 20px 0; padding: 20px; border: 2px dashed #555; border-radius: 10px; }
+
+        #qrcode { background: white; padding: 10px; border-radius: 10px; margin: 20px auto; display: inline-block; }
         .hidden { display: none !important; }
-        
-        /* ホスト画面 */
-        #host-view { padding: 20px; }
-        .qr-container { background: white; padding: 20px; display: inline-block; border-radius: 10px; margin: 20px; }
-        .player-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; }
-        .player-card { width: 150px; padding: 15px; border-radius: 15px; border: 4px solid #444; transition: 0.3s; }
-        .player-card.connected { border-color: var(--main-red); box-shadow: 0 0 15px var(--main-red); }
-
-        /* スマホ画面 */
-        #client-view { padding: 40px 20px; }
-        input { padding: 15px; font-size: 1.2rem; border-radius: 8px; border: none; width: 80%; margin-bottom: 20px; }
-        
-        .btn { background: var(--main-red); color: white; border: none; padding: 15px 30px; font-size: 1.2rem; border-radius: 50px; cursor: pointer; font-weight: bold; }
-        .btn:disabled { background: #555; }
-
-        .role-reveal { font-size: 2.5rem; font-weight: bold; margin: 40px 0; color: #ff4500; text-shadow: 0 0 10px rgba(255,69,0,0.5); }
-        
-        /* ジョイコンビジュアル */
-        .jc-icon { width: 40px; height: 100px; border-radius: 10px; margin: 0 auto 10px; position: relative; }
+        #log { font-size: 0.7rem; color: #888; margin-top: 10px; height: 40px; overflow-y: auto; }
     </style>
 </head>
 <body>
 
-<!-- メインコンテンツ -->
-<div id="setup-view">
-    <h1>JOY-CON人狼</h1>
-    <button class="btn" onclick="initHost()">ホストとして部屋を作る</button>
-    <p>またはスマホでQRをスキャンして参加</p>
-</div>
+<div class="container">
+    <!-- 初期選択画面 -->
+    <div id="view-init" class="card">
+        <h1>Joy-Con人狼</h1>
+        <button class="btn" onclick="setupHost()">ホストとして部屋を作る</button>
+        <p>またはQRコードをスキャンして参加</p>
+    </div>
 
-<!-- ホスト画面: PCで見せる -->
-<div id="host-view" class="hidden">
-    <h2>ルームID: <span id="room-id-display"></span></h2>
-    <div class="qr-container" id="qrcode"></div>
-    <div id="host-msg">ジョイコンをPCにBluetooth接続し、下のボタンで同期してください</div>
-    <br>
-    <button class="btn" onclick="connectJoyCon()">ジョイコンを接続(HID)</button>
-    <button class="btn" style="background: #2ecc71;" onclick="startGame()">ゲーム開始！</button>
-    
-    <div class="player-list" id="player-list"></div>
-</div>
+    <!-- ホスト待機画面 -->
+    <div id="view-host-lobby" class="card hidden">
+        <h2>部屋ID: <span id="display-room-id"></span></h2>
+        <div id="qrcode"></div>
+        <div id="joycon-status">ジョイコンをPCに接続してください</div>
+        <button class="btn btn-blue" onclick="connectHID()">Joy-Conを同期(HID)</button>
+        <div class="player-grid" id="host-player-list"></div>
+        <button id="start-btn" class="btn" onclick="distributeRoles()" style="margin-top:20px">全員揃ったら開始</button>
+    </div>
 
-<!-- クライアント画面: スマホで操作 -->
-<div id="client-view" class="hidden">
-    <div id="client-join">
-        <h2>参加者名を入力</h2>
-        <input type="text" id="player-name" placeholder="なまえ">
-        <button class="btn" onclick="joinGame()">参加する</button>
+    <!-- プレイヤー参加画面 -->
+    <div id="view-player-join" class="card hidden">
+        <h2>ゲームに参加</h2>
+        <input type="text" id="input-name" placeholder="なまえを入力" style="width:80%; padding:15px; border-radius:10px; border:none; margin-bottom:20px;">
+        <button class="btn" onclick="playerJoin()">参加する</button>
     </div>
-    <div id="client-wait" class="hidden">
-        <h2>待機中...</h2>
-        <p>ホストが開始するのを待っています</p>
+
+    <!-- プレイヤー待機・役職確認画面 -->
+    <div id="view-player-game" class="card hidden">
+        <h2 id="player-status-msg">待機中...</h2>
+        <div id="role-display" class="hidden">
+            <p>あなたの役職は</p>
+            <div class="role-box" id="my-role">? ? ?</div>
+        </div>
+        <div id="vote-section" class="hidden">
+            <p>怪しいと思う人に投票してください</p>
+            <div id="vote-buttons"></div>
+        </div>
     </div>
-    <div id="client-role" class="hidden">
-        <p>あなたの役職は...</p>
-        <div class="role-reveal" id="role-name">? ? ?</div>
-    </div>
+
+    <div id="log"></div>
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
-    import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+    import { getDatabase, ref, set, onValue, update, push } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
 
+    // --- Firebase Configuration ---
     const firebaseConfig = {
         apiKey: "AIzaSyDbZzTMvUkG2LXIGY4ux0KBTmnAdqP236s",
         authDomain: "game-4f2d9.firebaseapp.com",
@@ -84,124 +90,142 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
-    let roomId = "ROOM1234"; // 固定またはランダム生成
-    let myPlayerId = null;
+    let roomId = "";
+    let myId = "";
+    let isHost = false;
+    let joycons = [];
 
-    // --- HID Joy-Con Logic ---
-    let controllers = [];
-
-    async function connectJoyCon() {
-        try {
-            const devices = await navigator.hid.requestDevice({
-                filters: [{ vendorId: 0x057e, productId: 0x2006 }, { vendorId: 0x057e, productId: 0x2007 }]
-            });
-            
-            for (const device of devices) {
-                await device.open();
-                // 簡易的な色取得（本来はSPIフラッシュ読み取りが必要ですが、ここでは接続確認を優先）
-                // 実際には標準の0x10等のパケットで色を取得可能
-                const jcData = {
-                    id: device.productId === 0x2006 ? 'L' : 'R',
-                    color: device.productId === 0x2006 ? '#00eeee' : '#ff4444', // デフォルト
-                    deviceName: device.productName
-                };
-                
-                // 振動テスト
-                const rumble = new Uint8Array(9);
-                rumble[0] = 0x10; // Rumble report
-                await device.sendReport(0x01, rumble);
-
-                alert(`${jcData.deviceName} が接続されました！`);
-                
-                // ジャイロの簡易検知（InputReport）
-                device.oninputreport = (e) => {
-                    const data = new Uint8Array(e.data.buffer);
-                    // 簡易的な「振った」判定（加速度の変化）
-                    if (data[13] > 200) { // しきい値
-                        handleShake(jcData.id);
-                    }
-                };
-            }
-        } catch (e) {
-            console.error("HID Error:", e);
-        }
+    // --- Utility: Logging ---
+    function log(msg) {
+        const el = document.getElementById('log');
+        el.innerText = msg;
+        console.log(msg);
     }
 
-    function handleShake(side) {
-        console.log("Joy-Con Shaken:", side);
-        // Firebaseにジャイロアクションを送信可能
+    // --- View Switching ---
+    function showView(id) {
+        document.querySelectorAll('.card').forEach(v => v.classList.add('hidden'));
+        document.getElementById(id).classList.remove('hidden');
+    }
+
+    // --- Host Logic ---
+    window.setupHost = () => {
+        isHost = true;
+        roomId = Math.random().toString(36).substring(2, 6).toUpperCase();
+        document.getElementById('display-room-id').innerText = roomId;
+        const joinUrl = `${window.location.origin}${window.location.pathname}?r=${roomId}`;
+        new QRCode(document.getElementById("qrcode"), { text: joinUrl, width: 150, height: 150 });
+        showView('view-host-lobby');
+
+        onValue(ref(db, `rooms/${roomId}/players`), (snapshot) => {
+            const players = snapshot.val();
+            updateHostPlayerList(players);
+        });
+    };
+
+    function updateHostPlayerList(players) {
+        const list = document.getElementById('host-player-list');
+        list.innerHTML = '';
+        if (!players) return;
+        Object.keys(players).forEach(id => {
+            const p = players[id];
+            const div = document.createElement('div');
+            div.innerHTML = `<div class="player-dot" style="background:${p.color || '#555'}"></div><div class="player-name">${p.name}</div>`;
+            list.appendChild(div);
+        });
+    }
+
+    // --- Web HID Joy-Con Logic ---
+    window.connectHID = async () => {
+        try {
+            const devices = await navigator.hid.requestDevice({
+                filters: [
+                    { vendorId: 0x057e, productId: 0x2006 }, // L
+                    { vendorId: 0x057e, productId: 0x2007 }  // R
+                ]
+            });
+
+            for (const device of devices) {
+                await device.open();
+                log(`${device.productName} 接続成功`);
+                
+                // ジャイロ有効化 & 通信モード設定
+                await device.sendReport(0x01, new Uint8Array([0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x01]));
+                
+                // 振動(Rumble)
+                const rumble = new Uint8Array([0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+                await device.sendReport(0x01, rumble);
+
+                device.oninputreport = (e) => {
+                    const data = new DataView(e.data.buffer);
+                    // 簡易ジャイロ（振った判定）
+                    const accX = data.getInt16(12, true);
+                    if (Math.abs(accX) > 10000) {
+                        handleJoyConShake(device.productId);
+                    }
+                };
+                joycons.push(device);
+            }
+            document.getElementById('joycon-status').innerText = `${joycons.length} 台のJoy-Conを同期中`;
+        } catch (e) {
+            log("HIDエラー: " + e.message);
+        }
+    };
+
+    function handleJoyConShake(pid) {
+        log("Shake detected!");
+        // 激しく振ると画面にエフェクトを出す等のFirebase処理
+    }
+
+    // --- Player Logic ---
+    window.playerJoin = async () => {
+        const name = document.getElementById('input-name').value;
+        if (!name) return alert("名前を入れてね");
+        myId = push(ref(db, `rooms/${roomId}/players`)).key;
+        await set(ref(db, `rooms/${roomId}/players/${myId}`), {
+            name: name,
+            role: "waiting",
+            color: '#'+Math.floor(Math.random()*16777215).toString(16)
+        });
+        showView('view-player-game');
+        listenToGameStatus();
+    };
+
+    function listenToGameStatus() {
+        onValue(ref(db, `rooms/${roomId}/players/${myId}`), (snapshot) => {
+            const data = snapshot.val();
+            if (data && data.role !== "waiting") {
+                document.getElementById('player-status-msg').innerText = "あなたの正体";
+                document.getElementById('role-display').classList.remove('hidden');
+                document.getElementById('my-role').innerText = data.role;
+            }
+        });
     }
 
     // --- Game Logic ---
-    window.initHost = () => {
-        document.getElementById('setup-view').classList.add('hidden');
-        document.getElementById('host-view').classList.remove('hidden');
-        document.getElementById('room-id-display').innerText = roomId;
-        
-        const url = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
-        new QRCode(document.getElementById("qrcode"), { text: url, width: 128, height: 128 });
-
-        // 参加者の監視
-        onValue(ref(db, `games/${roomId}/players`), (snapshot) => {
-            const players = snapshot.val();
-            const listEl = document.getElementById('player-list');
-            listEl.innerHTML = '';
+    window.distributeRoles = async () => {
+        const snapshot = await (ref(db, `rooms/${roomId}/players`));
+        onValue(ref(db, `rooms/${roomId}/players`), (snap) => {
+            const players = snap.val();
             if (!players) return;
+            const ids = Object.keys(players);
+            const roles = ['人狼', '占い師'];
+            while(roles.length < ids.length) roles.push('村人');
+            roles.sort(() => Math.random() - 0.5);
 
-            Object.keys(players).forEach(id => {
-                const p = players[id];
-                const card = document.createElement('div');
-                card.className = 'player-card connected';
-                card.innerHTML = `
-                    <div class="jc-icon" style="background: ${p.color || '#555'}"></div>
-                    <div>${p.name}</div>
-                `;
-                listEl.appendChild(card);
+            ids.forEach((id, index) => {
+                update(ref(db, `rooms/${roomId}/players/${id}`), { role: roles[index] });
             });
-        });
+        }, { onlyOnce: true });
+        document.getElementById('start-btn').innerText = "ゲーム進行中...";
     };
 
-    window.joinGame = async () => {
-        const name = document.getElementById('player-name').value;
-        if (!name) return alert("名前を入力してください");
-        
-        myPlayerId = "player_" + Math.random().toString(36).substr(2, 9);
-        await set(ref(db, `games/${roomId}/players/${myPlayerId}`), {
-            name: name,
-            role: "waiting",
-            color: "#ffcc00"
-        });
-
-        document.getElementById('client-join').classList.add('hidden');
-        document.getElementById('client-wait').classList.remove('hidden');
-
-        // 役職配布の監視
-        onValue(ref(db, `games/${roomId}/players/${myPlayerId}/role`), (snapshot) => {
-            const role = snapshot.val();
-            if (role !== "waiting") {
-                document.getElementById('client-wait').classList.add('hidden');
-                document.getElementById('client-role').classList.remove('hidden');
-                document.getElementById('role-name').innerText = role;
-            }
-        });
-    };
-
-    window.startGame = async () => {
-        const snapshot = await (ref(db, `games/${roomId}/players`));
-        // 役職割り当てロジック
-        update(ref(db, `games/${roomId}`), { status: "playing" });
-        // ※実際にはここで全プレイヤーにランダムなroleをupdateする処理を追加
-        alert("役職を配布しました。スマホを確認してください！");
-    };
-
-    // クライアント参加モード判定
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('room')) {
-        roomId = params.get('room');
-        document.getElementById('setup-view').classList.add('hidden');
-        document.getElementById('client-view').classList.remove('hidden');
+    // 初期URL判定
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('r')) {
+        roomId = urlParams.get('r');
+        showView('view-player-join');
     }
-
 </script>
 </body>
 </html>
