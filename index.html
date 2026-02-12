@@ -3,121 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JOY-CON WEREWOLF: ULTIMATE</title>
+    <title>ULTIMATE JOY-CON WEREWOLF</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        :root { --red: #ff003c; --blue: #00e5ff; --dark: #0a0a0c; --gold: #ffd700; }
-        body { background: var(--dark); color: white; font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; text-align: center; overflow-x: hidden; }
-        .screen { display: none; min-height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
+        :root { --red: #ff003c; --blue: #00e5ff; --dark: #050505; --gold: #ffd700; }
+        body { background: var(--dark); color: white; font-family: 'Helvetica Neue', Arial, sans-serif; margin: 0; text-align: center; overflow: hidden; }
+        .screen { display: none; height: 100vh; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
         .active { display: flex; }
 
-        /* UI Parts */
-        .btn { background: var(--red); color: white; border: none; padding: 15px 40px; border-radius: 50px; font-size: 1.2rem; font-weight: bold; cursor: pointer; margin: 10px; transition: 0.3s; box-shadow: 0 0 20px rgba(255,0,60,0.4); }
-        .btn:hover { transform: scale(1.05); filter: brightness(1.2); }
-        .btn-blue { background: var(--blue); box-shadow: 0 0 20px rgba(0,229,255,0.4); }
-        .card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 30px; border-radius: 20px; backdrop-filter: blur(10px); width: 90%; max-width: 500px; }
+        /* デザインパーツ */
+        .card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 30px; border-radius: 20px; backdrop-filter: blur(10px); width: 90%; max-width: 500px; box-shadow: 0 0 30px rgba(0,0,0,0.5); }
+        .btn { background: var(--red); color: white; border: none; padding: 18px 40px; border-radius: 50px; font-size: 1.2rem; font-weight: bold; cursor: pointer; margin: 10px; transition: 0.3s; box-shadow: 0 0 15px rgba(255,0,60,0.4); }
+        .btn-blue { background: var(--blue); box-shadow: 0 0 15px rgba(0,229,255,0.4); }
+        .btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
-        /* Host: Player Ring */
-        #player-orbit { position: relative; width: 500px; height: 500px; margin: 40px auto; border: 1px dashed rgba(255,255,255,0.2); border-radius: 50%; }
-        .p-node { position: absolute; transform: translate(-50%, -50%); transition: 0.5s; }
-        .p-avatar { width: 60px; height: 60px; border-radius: 15px; border: 3px solid #444; background: #222; margin-bottom: 5px; }
-        .p-node.target .p-avatar { border-color: var(--red); box-shadow: 0 0 30px var(--red); animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        /* ホスト：プレイヤー配置 */
+        #orbit { position: relative; width: 600px; height: 600px; margin: 20px auto; border-radius: 50%; border: 1px dashed rgba(255,255,255,0.1); }
+        .p-node { position: absolute; transform: translate(-50%, -50%); transition: 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55); }
+        .avatar { width: 70px; height: 70px; border-radius: 20px; border: 4px solid #333; background: #111; position: relative; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        .laser { position: absolute; height: 3px; background: linear-gradient(90deg, transparent, var(--red)); transform-origin: 0 50%; pointer-events: none; opacity: 0; }
 
-        /* Player: Voting */
-        .vote-btn { background: transparent; border: 2px solid var(--blue); color: var(--blue); width: 100%; padding: 10px; margin: 5px 0; border-radius: 10px; cursor: pointer; }
-        .vote-btn.selected { background: var(--blue); color: black; }
-
-        #qrcode { background: white; padding: 10px; border-radius: 10px; margin: 20px; }
-        #announcement { font-size: 2rem; font-weight: bold; color: var(--gold); min-height: 3rem; }
+        #qrcode { background: white; padding: 10px; border-radius: 10px; display: inline-block; margin: 20px; }
+        #status-msg { font-size: 2.5rem; font-weight: bold; text-shadow: 0 0 20px var(--red); margin-bottom: 20px; height: 4rem;}
+        
+        input { width: 80%; padding: 15px; margin: 10px 0; border-radius: 10px; border: 1px solid #444; background: #111; color: white; font-size: 1.2rem; }
     </style>
 </head>
 <body>
 
 <!-- 1. トップ画面 -->
 <div id="screen-top" class="screen active">
-    <h1 style="font-size: 3rem; letter-spacing: 5px;">JOY-CON<br><span style="color:var(--red)">WEREWOLF</span></h1>
+    <h1 style="font-size: 3.5rem; margin-bottom: 0;">JOY-CON</h1>
+    <h1 style="font-size: 2.5rem; color: var(--red); margin-top: 0; letter-spacing: 10px;">WEREWOLF</h1>
     <div class="card">
-        <button class="btn" onclick="initHost()">部屋を作る (PC/Host)</button>
-        <button class="btn btn-blue" onclick="showScreen('screen-player-join')">参加する (Smartphone)</button>
+        <button class="btn" onclick="initHost()">ホストとして部屋を作る</button>
+        <button class="btn btn-blue" onclick="showScreen('screen-player-join')">プレイヤーとして参加</button>
     </div>
 </div>
 
 <!-- 2. プレイヤー参加画面 -->
 <div id="screen-player-join" class="screen">
     <div class="card">
-        <h2>JOIN GAME</h2>
-        <input type="text" id="p-name" placeholder="あなたの名前" style="width:80%; padding:15px; margin-bottom:20px; border-radius:10px; border:none;">
-        <input type="text" id="p-room" placeholder="ルームID" style="width:80%; padding:15px; margin-bottom:20px; border-radius:10px; border:none;">
-        <button class="btn" onclick="playerJoin()">入室する</button>
+        <h2>GAME JOIN</h2>
+        <input type="text" id="join-room" placeholder="ルームID">
+        <input type="text" id="join-name" placeholder="なまえ">
+        <button class="btn btn-blue" onclick="playerJoin()">入室する</button>
+        <button class="btn" onclick="showScreen('screen-top')" style="background:transparent; border:1px solid #555;">もどる</button>
     </div>
 </div>
 
-<!-- 3. ホスト：ロビー画面 -->
+<!-- 3. ホスト：ロビー -->
 <div id="screen-host-lobby" class="screen">
-    <h1>ROOM ID: <span id="display-room-id" style="color:var(--blue)">----</span></h1>
+    <div id="status-msg">LOBBY</div>
     <div id="qrcode"></div>
+    <h2>ROOM ID: <span id="room-id-display" style="color:var(--blue)">----</span></h2>
     <div class="card">
-        <h3>参加プレイヤー (<span id="p-count">0</span>)</h3>
-        <div id="host-p-list" style="display:flex; flex-wrap:wrap; justify-content:center; gap:10px;"></div>
-        <hr style="margin:20px 0; border:0.5px solid #444;">
-        <button class="btn btn-blue" onclick="connectHID()">JOY-CONを同期</button>
+        <div id="host-p-list" style="display:flex; flex-wrap:wrap; justify-content:center; gap:10px; min-height:50px;"></div>
+        <button class="btn btn-blue" id="hid-btn" onclick="connectHID()">JOY-CONを同期 (HID)</button>
         <button class="btn" onclick="startGame()">ゲーム開始</button>
     </div>
 </div>
 
-<!-- 4. ホスト：メインゲーム画面 -->
+<!-- 4. ホスト：メインゲーム -->
 <div id="screen-host-main" class="screen">
-    <div id="announcement">議論を開始してください</div>
-    <div id="player-orbit">
-        <!-- プレイヤーが円状に配置される -->
+    <div id="status-msg" id="main-announcement">議論を開始してください</div>
+    <div id="orbit">
+        <!-- プレイヤーノード -->
     </div>
-    <div class="card" style="position:fixed; bottom:20px; left:50%; transform:translateX(-50%); flex-direction:row;">
-        <button class="btn btn-blue" onclick="changePhase('voting')">投票開始</button>
-        <button class="btn" onclick="processReverseSilence()">結果発表 (物理衝撃)</button>
+    <div style="position:fixed; bottom:30px; width:100%; display:flex; justify-content:center; gap:20px;">
+        <button class="btn btn-blue" onclick="setPhase('voting')">投票フェーズ開始</button>
+        <button class="btn" onclick="executeReverseSilence()">結果発表 (物理衝撃)</button>
     </div>
 </div>
 
-<!-- 5. プレイヤー：ゲーム操作画面 -->
+<!-- 5. プレイヤー：ゲーム画面 -->
 <div id="screen-player-game" class="screen">
     <div class="card">
-        <h2 id="p-role-display" style="color:var(--gold)">役職を確認中...</h2>
-        <p id="p-status">待機してください</p>
-        <div id="player-vote-area" class="hidden">
-            <p>怪しいと思う人を選べ：</p>
-            <div id="vote-list"></div>
+        <h1 id="my-role" style="color:var(--gold)">役職を確認中...</h1>
+        <p id="my-status">準備完了</p>
+        <div id="vote-area" style="display:none;">
+            <h3>投票先を選択</h3>
+            <div id="vote-targets"></div>
         </div>
     </div>
 </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
-    import { getDatabase, ref, set, onValue, update, push, get } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
+    import { getDatabase, ref, set, onValue, update, get } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-database.js";
 
-    // --- Firebase設定（ここにあなたの情報を入れてください） ---
+    // Firebase Config
     const firebaseConfig = {
-        apiKey: "AIzaSy...",
+        apiKey: "AIzaSyDbZzTMvUkG2LXIGY4ux0KBTmnAdqP236s",
         authDomain: "game-4f2d9.firebaseapp.com",
         databaseURL: "https://game-4f2d9-default-rtdb.asia-southeast1.firebasedatabase.app",
         projectId: "game-4f2d9",
+        storageBucket: "game-4f2d9.firebasestorage.app",
+        messagingSenderId: "574316347824",
+        appId: "1:574316347824:web:cf686040628e25ad615675"
     };
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
+
     let roomId = "";
     let myId = "";
-    let joycons = []; // ホスト用：HIDデバイス配列
+    let isHost = false;
+    let joycons = []; // HID Devices
 
-    // --- 画面遷移 ---
     window.showScreen = (id) => {
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         document.getElementById(id).classList.add('active');
     };
 
-    // --- ホスト：初期化 ---
+    // --- ホストロジック ---
     window.initHost = () => {
+        isHost = true;
         roomId = Math.random().toString(36).substring(2, 6).toUpperCase();
-        document.getElementById('display-room-id').innerText = roomId;
+        document.getElementById('room-id-display').innerText = roomId;
         const url = `${window.location.origin}${window.location.pathname}?r=${roomId}`;
         new QRCode(document.getElementById("qrcode"), { text: url, width: 120, height: 120 });
         showScreen('screen-host-lobby');
@@ -126,43 +129,38 @@
             const players = snap.val() || {};
             const list = document.getElementById('host-p-list');
             list.innerHTML = '';
-            const ids = Object.keys(players);
-            document.getElementById('p-count').innerText = ids.length;
-            ids.forEach(id => {
-                const p = players[id];
-                list.innerHTML += `<div style="padding:10px; background:${p.color}; border-radius:5px; color:black; font-weight:bold;">${p.name}</div>`;
+            Object.values(players).forEach(p => {
+                list.innerHTML += `<div style="padding:10px; background:${p.color}; border-radius:10px; color:black; font-weight:bold;">${p.name}</div>`;
             });
             updateOrbit(players);
         });
     };
 
-    // --- ホスト：HID同期 ---
     window.connectHID = async () => {
         const devices = await navigator.hid.requestDevice({
             filters: [{ vendorId: 0x057e, productId: 0x2006 }, { vendorId: 0x057e, productId: 0x2007 }]
         });
         for (const device of devices) {
             await device.open();
-            // 振動有効化
+            // IMU (ジャイロ) 有効化パケット
             await device.sendReport(0x01, new Uint8Array([0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0x40, 0x01]));
             joycons.push(device);
-            // 接続確認振動
-            sendRumble(device, true);
+            rumble(device, [0x40, 0x40, 0x40, 0x40]); // 接続確認
         }
-        alert(`${joycons.length} 台のジョイコンを同期しました。参加順に割り当てられます。`);
+        document.getElementById('hid-btn').innerText = `${joycons.length}本のJoy-Conを同期済`;
     };
 
-    // --- プレイヤー：参加 ---
+    // --- プレイヤーロジック ---
     window.playerJoin = async () => {
-        const name = document.getElementById('p-name').value;
-        roomId = document.getElementById('p-room').value.toUpperCase();
-        if (!name || !roomId) return alert("名前と部屋IDを入れてね");
+        roomId = document.getElementById('join-room').value.toUpperCase();
+        const name = document.getElementById('join-name').value;
+        if (!roomId || !name) return alert("全部入力してね");
 
         myId = "p_" + Math.random().toString(36).substring(2, 9);
         await set(ref(db, `rooms/${roomId}/players/${myId}`), {
             name: name,
-            color: `hsl(${Math.random() * 360}, 70%, 60%)`,
-            role: "waiting",
+            color: `hsl(${Math.random() * 360}, 70%, 50%)`,
+            role: "待機中",
             alive: true,
             votedFor: ""
         });
@@ -170,132 +168,130 @@
         listenToGame();
     };
 
-    // --- ゲームロジック：逆転の静寂 (Reverse Silence) ---
-    window.processReverseSilence = async () => {
-        const snap = await get(ref(db, `rooms/${roomId}/players`));
-        const players = snap.val();
-        const ids = Object.keys(players);
-        
-        // 投票集計
-        let counts = {};
-        ids.forEach(id => {
-            const v = players[id].votedFor;
-            if (v) counts[v] = (counts[v] || 0) + 1;
-        });
-
-        const maxVotes = Math.max(...Object.values(counts), 0);
-        const targets = ids.filter(id => counts[id] === maxVotes && maxVotes > 0);
-
-        document.getElementById('announcement').innerText = "運命の裁定...";
-
-        // ジョイコンへの物理フィードバック
-        ids.forEach((id, index) => {
-            const device = joycons[index];
-            if (!device) return;
-
-            if (targets.includes(id)) {
-                // 最多得票者：静寂
-                console.log(id + " is silent");
-            } else {
-                // それ以外：激しい振動
-                triggerIntenseRumble(device);
-            }
-        });
-
-        // 画面演出
-        setTimeout(() => {
-            targets.forEach(tid => {
-                document.getElementById(`p-node-${tid}`).classList.add('target');
-                update(ref(db, `rooms/${roomId}/players/${tid}`), { alive: false });
-            });
-            document.getElementById('announcement').innerText = targets.length > 0 ? "処刑執行" : "平和な夜...";
-        }, 1000);
-    };
-
-    // --- ユーティリティ ---
-    function updateOrbit(players) {
-        const orbit = document.getElementById('player-orbit');
-        orbit.innerHTML = '';
-        const ids = Object.keys(players);
-        ids.forEach((id, i) => {
-            const angle = (i / ids.length) * 2 * Math.PI;
-            const x = Math.cos(angle) * 200 + 250;
-            const y = Math.sin(angle) * 200 + 250;
-            const div = document.createElement('div');
-            div.className = 'p-node';
-            div.id = `p-node-${id}`;
-            div.style.left = x + 'px';
-            div.style.top = y + 'px';
-            div.innerHTML = `<div class="p-avatar" style="background:${players[id].color}"></div><div style="font-size:10px">${players[id].name}</div>`;
-            orbit.appendChild(div);
-        });
-    }
-
-    async function triggerIntenseRumble(device) {
-        // 強烈な振動パケット
-        const rumbleData = new Uint8Array([0x10, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]);
-        let i = 0;
-        const timer = setInterval(() => {
-            device.sendReport(0x01, rumbleData);
-            if (i++ > 20) {
-                clearInterval(timer);
-                device.sendReport(0x01, new Uint8Array([0x10, 0x00, 0,0,0,0, 0,0,0,0]));
-            }
-        }, 50);
-    }
-
-    async function sendRumble(device, short) {
-        const rumbleData = new Uint8Array([0x10, 0x00, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40]);
-        await device.sendReport(0x01, rumbleData);
-        setTimeout(() => device.sendReport(0x01, new Uint8Array([0x10,0,0,0,0,0,0,0,0,0])), 200);
-    }
-
     function listenToGame() {
         onValue(ref(db, `rooms/${roomId}/players/${myId}`), (snap) => {
             const p = snap.val();
-            if (p.role !== "waiting") {
-                document.getElementById('p-role-display').innerText = "あなたの役職: " + p.role;
-                document.getElementById('p-status').innerText = p.alive ? "生存" : "死亡 (幽霊)";
+            if(p.role !== "待機中") {
+                document.getElementById('my-role').innerText = p.role;
+                document.getElementById('my-status').innerText = p.alive ? "生存" : "死亡 (幽霊)";
             }
         });
-        // 投票リストの更新
+        onValue(ref(db, `rooms/${roomId}/phase`), (snap) => {
+            const phase = snap.val();
+            document.getElementById('vote-area').style.display = (phase === 'voting' && document.getElementById('my-status').innerText === '生存') ? 'block' : 'none';
+        });
+        // 投票ターゲット生成
         onValue(ref(db, `rooms/${roomId}/players`), (snap) => {
             const players = snap.val();
-            const list = document.getElementById('vote-list');
-            list.innerHTML = '';
+            const container = document.getElementById('vote-targets');
+            container.innerHTML = '';
             Object.keys(players).forEach(id => {
-                if (id === myId) return;
-                const b = document.createElement('button');
-                b.className = 'vote-btn';
-                b.innerText = players[id].name;
-                b.onclick = () => {
-                    update(ref(db, `rooms/${roomId}/players/${myId}`), { votedFor: id });
-                    alert(players[id].name + " に投票しました");
-                };
-                list.appendChild(b);
+                if(id === myId) return;
+                const btn = document.createElement('button');
+                btn.className = 'btn btn-blue';
+                btn.style.width = '100%';
+                btn.innerText = players[id].name;
+                btn.onclick = () => update(ref(db, `rooms/${roomId}/players/${myId}`), { votedFor: id });
+                container.appendChild(btn);
             });
         });
     }
 
+    // --- メインゲーム制御 ---
     window.startGame = () => {
         showScreen('screen-host-main');
-        // 役職配布
         get(ref(db, `rooms/${roomId}/players`)).then(snap => {
-            const ids = Object.keys(snap.val());
+            const players = snap.val();
+            const ids = Object.keys(players);
             const roles = ["人狼", "占い師"];
             while(roles.length < ids.length) roles.push("村人");
             roles.sort(() => Math.random() - 0.5);
             ids.forEach((id, i) => update(ref(db, `rooms/${roomId}/players/${id}`), { role: roles[i] }));
+            update(ref(db, `rooms/${roomId}`), { phase: 'playing' });
         });
     };
 
-    // URLからの自動入室
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('r')) {
-        document.getElementById('p-room').value = params.get('r');
-        showScreen('screen-player-join');
+    window.setPhase = (p) => update(ref(db, `rooms/${roomId}`), { phase: p });
+
+    window.executeReverseSilence = async () => {
+        const snap = await get(ref(db, `rooms/${roomId}/players`));
+        const players = snap.val();
+        const ids = Object.keys(players);
+        
+        let counts = {};
+        ids.forEach(id => {
+            const v = players[id].votedFor;
+            if(v) counts[v] = (counts[v] || 0) + 1;
+        });
+
+        const max = Math.max(...Object.values(counts), 0);
+        const targets = ids.filter(id => counts[id] === max && max > 0);
+
+        // 【逆転の静寂】
+        ids.forEach((id, index) => {
+            const device = joycons[index];
+            if(!device) return;
+            if (targets.includes(id)) {
+                // 処刑対象：無音（静寂）
+                setLED(device, 0x01);
+            } else {
+                // 生存者：激しい衝撃
+                intenseRumble(device);
+            }
+        });
+
+        targets.forEach(tid => update(ref(db, `rooms/${roomId}/players/${tid}`), { alive: false }));
+        document.getElementById('status-msg').innerText = "処刑完了。生存者の手元に衝撃が走りました。";
+    };
+
+    // --- 演出・HIDユーティリティ ---
+    function updateOrbit(players) {
+        const orbit = document.getElementById('orbit');
+        orbit.innerHTML = '';
+        const ids = Object.keys(players);
+        ids.forEach((id, i) => {
+            const angle = (i / ids.length) * 2 * Math.PI;
+            const x = Math.cos(angle) * 250 + 300;
+            const y = Math.sin(angle) * 250 + 300;
+            
+            const node = document.createElement('div');
+            node.className = 'p-node';
+            node.style.left = x + 'px';
+            node.style.top = y + 'px';
+            node.innerHTML = `
+                <div class="avatar" style="border-color:${players[id].color}; color:${players[id].color}">
+                    ${players[id].name[0]}
+                </div>
+                <div style="font-size:12px; margin-top:5px;">${players[id].name}</div>
+            `;
+            orbit.appendChild(node);
+        });
     }
 
+    async function intenseRumble(device) {
+        const rumbleData = new Uint8Array([0x10, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]);
+        for(let i=0; i<15; i++) {
+            await device.sendReport(0x01, rumbleData);
+            await new Promise(r => setTimeout(r, 50));
+        }
+        await device.sendReport(0x01, new Uint8Array([0x10, 0, 0,0,0,0, 0,0,0,0]));
+    }
+
+    async function rumble(device, p) {
+        await device.sendReport(0x01, new Uint8Array([0x10, 0, ...p, ...p]));
+        setTimeout(() => device.sendReport(0x01, new Uint8Array([0x10,0,0,0,0,0,0,0,0,0])), 300);
+    }
+
+    async function setLED(device, val) {
+        await device.sendReport(0x01, new Uint8Array([0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0x30, val]));
+    }
+
+    // URL自動入室チェック
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('r')) {
+        document.getElementById('join-room').value = urlParams.get('r');
+        showScreen('screen-player-join');
+    }
 </script>
 </body>
 </html>
