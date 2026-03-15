@@ -4,92 +4,82 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FuriFuri Battle</title>
-    <!-- QRコード生成用ライブラリ -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         body { background: #0f172a; color: white; font-family: sans-serif; text-align: center; padding: 20px; }
-        .card { background: #1e293b; padding: 20px; border-radius: 20px; max-width: 400px; margin: 10px auto; }
-        #qr-code { display: flex; justify-content: center; margin: 20px 0; }
-        .player-box { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #334155; }
-        button { background: #00f2ff; border: none; padding: 15px 30px; border-radius: 25px; cursor: pointer; }
+        .card { background: #1e293b; padding: 20px; border-radius: 20px; max-width: 400px; margin: 20px auto; }
+        input { background: #334155; border: none; padding: 12px; color: white; border-radius: 8px; width: 80%; margin: 10px 0; }
+        button { background: #00f2ff; border: none; padding: 15px 30px; border-radius: 25px; cursor: pointer; color: black; font-weight: bold; }
+        .player-row { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #334155; }
     </style>
 </head>
 <body>
 
     <!-- ホスト画面 -->
-    <div id="host-area" style="display:none;">
+    <div id="host-view" style="display:none;">
         <h1>ホスト管理画面</h1>
         <div class="card">
-            <div id="qr-code"></div>
-            <p>スマホで読み取って参加！</p>
-            <button onclick="startAll()">一斉にゲーム開始</button>
+            <div id="qrcode"></div>
+            <p>スマホでスキャンして参加！</p>
         </div>
-        <div class="card" id="rank-board"></div>
+        <div class="card" id="rankings"><h3>ランキング</h3></div>
     </div>
 
-    <!-- プレイヤー画面 -->
-    <div id="player-area" class="card" style="display:none;">
-        <h2>プレイヤー</h2>
-        <input type="text" id="roomId" placeholder="ルームID">
-        <input type="text" id="username" placeholder="名前">
-        <button onclick="joinGame()">参加</button>
+    <!-- 参加者画面 -->
+    <div id="player-view" class="card" style="display:none;">
+        <h2>参加画面</h2>
+        <p id="room-display"></p>
+        <input type="text" id="username" placeholder="ニックネームを入力">
+        <button onclick="joinGame()">参加する</button>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
         import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyDbZzTMvUkG2LXIGY4ux0KBTmnAdqP236s",
-            authDomain: "game-4f2d9.firebaseapp.com",
-            databaseURL: "https://game-4f2d9-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "game-4f2d9",
-            storageBucket: "game-4f2d9.firebasestorage.app",
-            messagingSenderId: "574316347824",
-            appId: "1:574316347824:web:cf686040628e25ad615675"
-        };
+        const firebaseConfig = { /* ここにあなたの設定を貼り付け */ };
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        const isHost = window.location.search.includes('host');
+        const params = new URLSearchParams(window.location.search);
+        const roomId = params.get('room') || "main-room";
+        const isHost = params.has('host');
 
         if (isHost) {
-            document.getElementById('host-area').style.display = 'block';
-            new QRCode(document.getElementById("qr-code"), window.location.origin + window.location.pathname);
-            
-            onValue(ref(db, 'game'), (snapshot) => {
+            document.getElementById('host-view').style.display = 'block';
+            // QRコードのURLを生成 (roomパラメータ付き)
+            const joinUrl = window.location.origin + window.location.pathname + "?room=" + roomId;
+            new QRCode(document.getElementById("qrcode"), joinUrl);
+
+            onValue(ref(db, `rooms/${roomId}`), (snapshot) => {
                 const data = snapshot.val() || {};
-                const stage = data.stage; // 'start', 'hidden', 'end'
-                const players = data.players || {};
-                
                 let html = "<h3>ランキング</h3>";
-                Object.entries(players).forEach(([name, d]) => {
-                    let scoreText = (stage === 'hidden') ? "???" : d.score;
-                    html += `<div class="player-box"><span>${name}</span> <b>${scoreText}回</b></div>`;
+                Object.entries(data).forEach(([name, d]) => {
+                    html += `<div class="player-row"><span>${name}</span> <b>${d.score}回</b></div>`;
                 });
-                document.getElementById('rank-board').innerHTML = html;
+                document.getElementById('rankings').innerHTML = html;
             });
         } else {
-            document.getElementById('player-area').style.display = 'block';
+            document.getElementById('player-view').style.display = 'block';
+            document.getElementById('room-display').innerText = "ルーム: " + roomId;
         }
-
-        window.startAll = () => {
-            const duration = 10; // 全員10秒固定
-            update(ref(db, 'game'), { stage: 'start' });
-            setTimeout(() => update(ref(db, 'game'), { stage: 'hidden' }), 3000); // 3秒後に隠す
-            setTimeout(() => update(ref(db, 'game'), { stage: 'end' }), duration * 1000);
-        };
 
         window.joinGame = async () => {
             const name = document.getElementById('username').value;
+            if (!name) return alert("名前を入力して下さい");
+            
+            // センサー許可＆ゲームロジック
             if (typeof DeviceMotionEvent.requestPermission === 'function') await DeviceMotionEvent.requestPermission();
             
+            let count = 0;
             window.addEventListener('devicemotion', (e) => {
                 const {x, y, z} = e.accelerationIncludingGravity;
                 if (Math.abs(x) + Math.abs(y) + Math.abs(z) > 25) {
-                    update(ref(db, 'game/players/' + name), { score: parseInt(Math.random()*100) }); // デモ用ランダム
+                    count++;
+                    update(ref(db, `rooms/${roomId}/${name}`), { score: count });
                 }
             });
+            document.body.innerHTML = "<h2>ゲーム開始！振れ！</h2>";
         };
     </script>
 </body>
