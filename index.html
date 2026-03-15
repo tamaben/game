@@ -2,36 +2,40 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>FuriFuri Game</title>
+    <title>Debug Mode</title>
     <style>
-        body { background: #111; color: white; font-family: sans-serif; text-align: center; padding: 50px; }
-        .hidden { display: none; }
+        body { background: #111; color: #fff; font-family: sans-serif; padding: 20px; }
+        .visible { display: block !important; }
     </style>
 </head>
 <body>
-    <div id="app">
-        <h1>読み込み中...</h1>
+    <div id="debug-info" style="color: yellow; border: 1px solid yellow; padding: 10px;">
+        読み込み開始中...
+    </div>
+
+    <!-- ホスト画面（強制表示テスト） -->
+    <div id="host-view" style="display:none; border: 2px solid green; padding: 20px;">
+        <h1>ホスト画面は表示されています！</h1>
+        <div id="qr-box"></div>
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
+        console.log("スクリプト開始");
+        const debug = document.getElementById('debug-info');
         
-        // 1. ここに自分の設定を必ずコピペしてください
-        const firebaseConfig = {
-            apiKey: "AIzaSyDbZzTMvUkG2LXIGY4ux0KBTmnAdqP236s",
-            authDomain: "game-4f2d9.firebaseapp.com",
-            databaseURL: "https://game-4f2d9-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "game-4f2d9",
-            storageBucket: "game-4f2d9.firebasestorage.app",
-            messagingSenderId: "574316347824",
-            appId: "1:574316347824:web:cf686040628e25ad615675"
-        };
-
         try {
-            const app = initializeApp(firebaseConfig);
-            document.getElementById('app').innerHTML = "<h1>接続成功！</h1><p>URLに ?host を付けて開いてください。</p>";
+            // URLパラメータのチェック
+            const isHost = window.location.search.includes('host');
+            debug.innerText = "URLパラメータチェック: host=" + isHost;
+
+            if (isHost) {
+                document.getElementById('host-view').style.display = 'block';
+                debug.innerText += " -> ホスト表示設定完了";
+            } else {
+                debug.innerText += " -> ホストではないため非表示";
+            }
         } catch (e) {
-            document.getElementById('app').innerHTML = "<h1>エラー発生</h1><p>" + e.message + "</p>";
+            debug.innerText = "エラー発生: " + e.message;
             console.error(e);
         }
     </script>
