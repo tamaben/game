@@ -6,112 +6,131 @@
     <title>みんなでフリフリ！</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        /* ふんわりデザイン */
-        body { 
-            background: #fff5f7; 
-            color: #5d6d7e; 
-            font-family: 'Segoe UI Rounded', 'Hiragino Maru Gothic Pro', sans-serif; 
-            display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0;
-        }
-        .box { 
-            background: white; padding: 40px; border-radius: 50px; 
-            box-shadow: 0 10px 30px rgba(255,182,193,0.3); text-align: center; border: 5px solid #ffdeeb;
-        }
+        body { background: #fdf5f7; color: #5d6d7e; font-family: 'Segoe UI Rounded', 'Hiragino Maru Gothic Pro', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .box { background: white; padding: 40px; border-radius: 50px; box-shadow: 0 10px 30px rgba(255,182,193,0.3); text-align: center; border: 5px solid #ffdeeb; }
+        .view { display: none; }
+        .error-box { background: #ffebee; color: #c62828; border-color: #ef9a9a; }
         h1 { color: #ffb7c5; font-size: 2.5rem; }
-        button { 
-            background: #87ceeb; color: white; border: none; padding: 20px 40px; 
-            border-radius: 40px; font-size: 1.5rem; cursor: pointer; transition: 0.3s;
-        }
-        button:hover { background: #5fa8d3; transform: scale(1.05); }
-        .score-row { 
-            display: flex; justify-content: space-between; padding: 15px; 
-            border-bottom: 2px dashed #ffdeeb; font-size: 1.5rem; color: #7f8c8d;
-        }
+        button { background: #87ceeb; color: white; border: none; padding: 20px 40px; border-radius: 40px; font-size: 1.5rem; cursor: pointer; }
+        .score-row { display: flex; justify-content: space-between; padding: 15px; border-bottom: 2px dashed #ffdeeb; font-size: 1.5rem; }
         #flash { position: fixed; top:0; left:0; width:100vw; height:100vh; background: #87ceeb; opacity:0; pointer-events:none; transition: 0.1s; }
     </style>
 </head>
 <body>
     <div id="flash"></div>
-
-    <!-- ホスト -->
-    <div id="host-view" style="display:none; width:90%; max-width:500px;">
-        <div class="box">
-            <h1>みんなでフリフリ！</h1>
-            <div id="qr" style="margin:20px;"></div>
-            <p>スマホで読み込んで参加してね！</p>
-            <button onclick="startGame()">ゲームスタート！</button>
-        </div>
-        <div id="game-ui" class="box" style="display:none; margin-top:20px;">
-            <div id="board"></div>
-        </div>
-    </div>
-
-    <!-- 参加者 -->
-    <div id="player-view" class="box" style="display:none; width:80%;">
-        <h1>参加するよ！</h1>
-        <input type="text" id="name" placeholder="おなまえ" style="padding:15px; font-size:1.2rem; border-radius:20px; border: 2px solid #ffdeeb; width:80%;"><br><br>
-        <button onclick="joinGame()">いくよ！</button>
+    <div id="app">
+        <!-- 初期表示はJSで制御 -->
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
         import { getDatabase, ref, update, onValue } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
 
-        // ※Firebase設定をここに！
-        const firebaseConfig = { /* ... */ };
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+        // ==================================================================
+        // あなたからいただいた設定をここに反映しました。
+        // ==================================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyDbZzTMvUkG2LXIGY4ux0KBTmnAdqP236s",
+            authDomain: "game-4f2d9.firebaseapp.com",
+            databaseURL: "https://game-4f2d9-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "game-4f2d9",
+            storageBucket: "game-4f2d9.firebasestorage.app",
+            messagingSenderId: "574316347824",
+            appId: "1:574316347824:web:cf686040628e25ad615675"
+        };
+        // ==================================================================
 
-        const params = new URLSearchParams(window.location.search);
-        const isHost = params.has('host');
-        const roomId = params.get('room') || "room_" + Math.random().toString(36).substr(2, 6);
+        const appContainer = document.getElementById('app');
 
-        if (isHost) {
-            document.getElementById('host-view').style.display = 'block';
-            new QRCode(document.getElementById("qr"), window.location.origin + window.location.pathname + "?room=" + roomId);
-            onValue(ref(db, `rooms/${roomId}`), (s) => {
-                const d = s.val() || {};
-                if (d.status === 'playing') {
-                    document.querySelector('.box').style.display = 'none';
-                    document.getElementById('game-ui').style.display = 'block';
-                }
-                let html = "<h2>いまのじゅんい</h2>";
-                const list = Object.entries(d.players || {}).sort((a,b) => b[1].s - a[1].s);
-                list.forEach(([n, v]) => html += `<div class="score-row"><span>${n}</span><span>${d.show ? v.s+'回' : '???'}</span></div>`);
-                document.getElementById('board').innerHTML = html;
-            });
+        // --- 起動前チェック ---
+        if (window.location.protocol === 'file:') {
+            appContainer.innerHTML = `<div class="box error-box"><h1>開き方が違います！</h1><p>このファイルはサーバー経由で開く必要があります。(Pythonの http.server など)</p></div>`;
         } else {
-            document.getElementById('player-view').style.display = 'block';
+            main();
         }
 
-        window.startGame = () => {
-            update(ref(db, `rooms/${roomId}`), { status: 'playing', show: true });
-            setTimeout(() => update(ref(db, `rooms/${roomId}`), { show: false }), 3000);
-            setTimeout(() => update(ref(db, `rooms/${roomId}`), { status: 'end', show: true }), 10000);
-        };
+        function main() {
+            const app = initializeApp(firebaseConfig);
+            const db = getDatabase(app);
 
-        window.joinGame = async () => {
-            const name = document.getElementById('name').value;
-            if (!name) return alert("おなまえをいれてね");
-            if (typeof DeviceMotionEvent.requestPermission === 'function') await DeviceMotionEvent.requestPermission();
-            
-            document.body.innerHTML = "<h1 style='color:#87ceeb;'>ふって、ふって！</h1>";
-            let count = 0;
-            let lastMotion = 0;
-            const flash = document.getElementById('flash');
-            
-            window.addEventListener('devicemotion', (e) => {
-                const acc = e.accelerationIncludingGravity;
-                const total = Math.abs(acc.x) + Math.abs(acc.y) + Math.abs(acc.z);
-                if (total > 30 && Date.now() - lastMotion > 500) {
-                    count++;
-                    lastMotion = Date.now();
-                    update(ref(db, `rooms/${roomId}/players/${name}`), { s: count });
-                    flash.style.opacity = 0.3;
-                    setTimeout(() => flash.style.opacity = 0, 100);
+            const params = new URLSearchParams(window.location.search);
+            const isHost = params.has('host');
+            const roomId = params.get('room') || "room_" + Math.random().toString(36).substr(2, 6);
+
+            if (isHost) {
+                appContainer.innerHTML = `
+                    <div id="host-view" class="view box" style="width:90%; max-width:500px;">
+                        <h1>みんなでフリフリ！</h1>
+                        <div id="qr-container" style="margin:20px;"></div>
+                        <p>スマホで読み込んで参加してね！</p>
+                        <button id="start-btn">ゲームスタート！</button>
+                    </div>
+                    <div id="game-ui" class="view box" style="margin-top:20px; width:90%; max-width:500px;">
+                        <div id="board"></div>
+                    </div>`;
+                new QRCode(document.getElementById("qr-container"), window.location.origin + window.location.pathname + "?room=" + roomId);
+                document.getElementById('start-btn').onclick = startGame;
+                document.getElementById('host-view').style.display = 'block';
+
+                onValue(ref(db, `rooms/${roomId}`), (s) => {
+                    const d = s.val() || {};
+                    if (d.status === 'playing') {
+                        document.getElementById('host-view').style.display = 'none';
+                        document.getElementById('game-ui').style.display = 'block';
+                    }
+                    let html = "<h2>いまのじゅんい</h2>";
+                    const list = Object.entries(d.players || {}).sort((a,b) => b[1].s - a[1].s);
+                    list.forEach(([n, v]) => html += `<div class="score-row"><span>${n}</span><span>${d.show ? v.s+'回' : '???'}</span></div>`);
+                    document.getElementById('board').innerHTML = html;
+                });
+            } else {
+                 appContainer.innerHTML = `
+                    <div id="player-view" class="view box">
+                        <h1>参加するよ！</h1>
+                        <input type="text" id="name" placeholder="おなまえ" style="padding:15px; font-size:1.2rem; border-radius:20px; border: 2px solid #ffdeeb; width:80%;"><br><br>
+                        <button id="join-btn">いくよ！</button>
+                    </div>`;
+                 document.getElementById('join-btn').onclick = joinGame;
+                 document.getElementById('player-view').style.display = 'block';
+            }
+
+            function startGame() {
+                update(ref(db, `rooms/${roomId}`), { status: 'playing', show: true });
+                setTimeout(() => update(ref(db, `rooms/${roomId}`), { show: false }), 4000);
+                setTimeout(() => update(ref(db, `rooms/${roomId}`), { status: 'end', show: true }), 10000);
+            }
+
+            async function joinGame() {
+                const name = document.getElementById('name').value;
+                if (!name) return alert("おなまえをいれてね");
+                if (typeof DeviceMotionEvent.requestPermission === 'function') {
+                   const res = await DeviceMotionEvent.requestPermission();
+                   if(res !== 'granted') return alert('センサーの許可が必要です');
                 }
-            });
-        };
+                
+                appContainer.innerHTML = "<h1 style='color:#87ceeb;'>ふって、ふって！</h1>";
+                
+                let count = 0;
+                let positivePeak = false;
+                const threshold = 15;
+                const flash = document.getElementById('flash');
+
+                window.addEventListener('devicemotion', (e) => {
+                    const acc_x = e.accelerationIncludingGravity.x;
+
+                    if (acc_x > threshold) {
+                        positivePeak = true;
+                    }
+                    if (acc_x < -threshold && positivePeak) {
+                        count++;
+                        positivePeak = false; 
+                        update(ref(db, `rooms/${roomId}/players/${name}`), { s: count });
+                        flash.style.opacity = 0.3;
+                        setTimeout(() => flash.style.opacity = 0, 100);
+                    }
+                });
+            }
+        }
     </script>
 </body>
 </html>
