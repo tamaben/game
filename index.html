@@ -2,100 +2,38 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FuriFuri Battle - クラス会・忘年会用</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <title>FuriFuri Game</title>
     <style>
-        body { background: #0a0a0a; color: #fff; font-family: 'Helvetica Neue', sans-serif; margin: 0; text-align: center; }
-        .screen { padding: 20px; }
-        #host-view, #player-view, #game-board { display: none; }
-        .card { background: #161616; padding: 20px; border-radius: 20px; border: 1px solid #333; display: inline-block; margin: 10px; }
-        #qr-box { background: white; padding: 10px; margin: 20px auto; width: fit-content; }
-        .rank-item { display: flex; justify-content: space-between; padding: 15px; border-bottom: 1px solid #222; font-size: 1.2rem; }
-        button { background: #00e5ff; color: #000; border: none; padding: 15px 40px; border-radius: 30px; font-weight: bold; font-size: 1.2rem; cursor: pointer; }
-        #timer { font-size: 3rem; color: #ff0055; }
+        body { background: #111; color: white; font-family: sans-serif; text-align: center; padding: 50px; }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
-
-    <!-- ホスト画面 -->
-    <div id="host-view" class="screen">
-        <h1 id="room-id-display">ルーム準備中...</h1>
-        <div id="setup-area">
-            <div id="qr-box"></div>
-            <button onclick="startGame()">ゲームスタート！</button>
-        </div>
-        <div id="game-board">
-            <div id="timer">GET READY!</div>
-            <div id="rankings" class="card" style="width:80%; max-width:500px;"></div>
-        </div>
-    </div>
-
-    <!-- プレイヤー画面 -->
-    <div id="player-view" class="screen">
-        <div class="card">
-            <h2>参加者登録</h2>
-            <input type="text" id="username" placeholder="ニックネーム" style="padding:10px; width:80%;"><br><br>
-            <button onclick="joinGame()">参加する</button>
-        </div>
+    <div id="app">
+        <h1>読み込み中...</h1>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
+        
+        // 1. ここに自分の設定を必ずコピペしてください
+        const firebaseConfig = {
+            apiKey: "AIzaSyDbZzTMvUkG2LXIGY4ux0KBTmnAdqP236s",
+            authDomain: "game-4f2d9.firebaseapp.com",
+            databaseURL: "https://game-4f2d9-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "game-4f2d9",
+            storageBucket: "game-4f2d9.firebasestorage.app",
+            messagingSenderId: "574316347824",
+            appId: "1:574316347824:web:cf686040628e25ad615675"
+        };
 
-        // ※ここにあなたのFirebase設定を忘れずに記入してください
-        const firebaseConfig = { /* ... */ };
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-
-        const params = new URLSearchParams(window.location.search);
-        const isHost = params.has('host');
-        const roomId = params.get('room') || ("room_" + Math.random().toString(36).substr(2, 6));
-
-        if (isHost) {
-            document.getElementById('host-view').style.display = 'block';
-            document.getElementById('room-id-display').innerText = "ルームID: " + roomId;
-            new QRCode(document.getElementById("qr-box"), window.location.origin + window.location.pathname + "?room=" + roomId);
-
-            onValue(ref(db, `rooms/${roomId}`), (s) => {
-                const data = s.val() || {};
-                if (data.status === 'playing') {
-                    document.getElementById('setup-area').style.display = 'none';
-                    document.getElementById('game-board').style.display = 'block';
-                }
-                let html = "<h2>ランキング</h2>";
-                const players = Object.entries(data.players || {}).sort((a,b) => b[1].score - a[1].score);
-                players.forEach(([name, d]) => {
-                    html += `<div class="rank-item"><span>${name}</span> <span>${data.showScores ? d.score+'回' : '???'}</span></div>`;
-                });
-                document.getElementById('rankings').innerHTML = html;
-            });
-        } else {
-            document.getElementById('player-view').style.display = 'block';
+        try {
+            const app = initializeApp(firebaseConfig);
+            document.getElementById('app').innerHTML = "<h1>接続成功！</h1><p>URLに ?host を付けて開いてください。</p>";
+        } catch (e) {
+            document.getElementById('app').innerHTML = "<h1>エラー発生</h1><p>" + e.message + "</p>";
+            console.error(e);
         }
-
-        window.startGame = () => {
-            update(ref(db, `rooms/${roomId}`), { status: 'playing', showScores: true });
-            setTimeout(() => update(ref(db, `rooms/${roomId}`), { showScores: false }), 4000);
-            setTimeout(() => update(ref(db, `rooms/${roomId}`), { status: 'end', showScores: true }), 10000);
-        };
-
-        window.joinGame = async () => {
-            const name = document.getElementById('username').value;
-            if (!name) return alert("名前を入力！");
-            if (typeof DeviceMotionEvent.requestPermission === 'function') await DeviceMotionEvent.requestPermission();
-            
-            document.body.innerHTML = "<h1>振れ！振れ！</h1>";
-            let count = 0;
-            window.addEventListener('devicemotion', (e) => {
-                const {x, y, z} = e.accelerationIncludingGravity;
-                if (Math.abs(x) + Math.abs(y) + Math.abs(z) > 25) {
-                    count++;
-                    update(ref(db, `rooms/${roomId}/players/${name}`), { score: count });
-                }
-            });
-        };
     </script>
 </body>
 </html>
