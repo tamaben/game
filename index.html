@@ -6,80 +6,94 @@
     <title>FuriFuri Battle</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        body { background: #0f172a; color: white; font-family: sans-serif; text-align: center; padding: 20px; }
-        .card { background: #1e293b; padding: 20px; border-radius: 20px; max-width: 400px; margin: 20px auto; }
-        input { background: #334155; border: none; padding: 12px; color: white; border-radius: 8px; width: 80%; margin: 10px 0; }
-        button { background: #00f2ff; border: none; padding: 15px 30px; border-radius: 25px; cursor: pointer; color: black; font-weight: bold; }
-        .player-row { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #334155; }
+        body { background: #050505; color: #fff; font-family: 'Arial Black', sans-serif; text-align: center; margin: 0; padding: 20px; }
+        .screen { display: none; padding-top: 50px; }
+        #qr-container { display: flex; justify-content: center; margin: 30px; }
+        .score-big { font-size: 5rem; color: #00f2ff; text-shadow: 0 0 20px #00f2ff; }
+        .ranking-table { max-width: 500px; margin: auto; }
+        .p-row { display: flex; justify-content: space-between; padding: 15px; border-bottom: 1px solid #333; font-size: 1.5rem; }
+        button { background: #ff0055; color: white; border: none; padding: 20px 40px; border-radius: 50px; font-size: 1.5rem; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <!-- ホスト画面 -->
-    <div id="host-view" style="display:none;">
-        <h1>ホスト管理画面</h1>
-        <div class="card">
-            <div id="qrcode"></div>
-            <p>スマホでスキャンして参加！</p>
+    <!-- ホスト専用画面 -->
+    <div id="host-view" class="screen">
+        <div id="setup-stage">
+            <h1>準備完了！</h1>
+            <div id="qr-container"></div>
+            <button onclick="startGame()">ゲームスタート！</button>
         </div>
-        <div class="card" id="rankings"><h3>ランキング</h3></div>
+        <div id="game-stage" style="display:none;">
+            <h1 id="timer-text">GET READY!</h1>
+            <div id="rank-board" class="ranking-table"></div>
+        </div>
     </div>
 
-    <!-- 参加者画面 -->
-    <div id="player-view" class="card" style="display:none;">
-        <h2>参加画面</h2>
-        <p id="room-display"></p>
-        <input type="text" id="username" placeholder="ニックネームを入力">
-        <button onclick="joinGame()">参加する</button>
+    <!-- プレイヤー専用画面 -->
+    <div id="player-view" class="screen">
+        <div id="join-form">
+            <h2>FuriFuri Battle</h2>
+            <input type="text" id="username" placeholder="ニックネーム" style="padding:15px; width:80%; border-radius:10px;"><br><br>
+            <button onclick="joinGame()">参加する</button>
+        </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
+        import { getDatabase, ref, set, onValue, update, remove } from "https://www.gstatic.com/firebasejs/12.10.0/firebase-database.js";
 
-        const firebaseConfig = { /* ここにあなたの設定を貼り付け */ };
-        const app = initializeApp(firebaseConfig);
+        const config = { /* Firebase設定 */ };
+        const app = initializeApp(config);
         const db = getDatabase(app);
 
         const params = new URLSearchParams(window.location.search);
-        const roomId = params.get('room') || "main-room";
         const isHost = params.has('host');
-
+        
         if (isHost) {
             document.getElementById('host-view').style.display = 'block';
-            // QRコードのURLを生成 (roomパラメータ付き)
-            const joinUrl = window.location.origin + window.location.pathname + "?room=" + roomId;
-            new QRCode(document.getElementById("qrcode"), joinUrl);
-
-            onValue(ref(db, `rooms/${roomId}`), (snapshot) => {
+            new QRCode(document.getElementById("qr-container"), window.location.origin + window.location.pathname + "?room=main");
+            
+            // 状態監視
+            onValue(ref(db, 'game'), (snapshot) => {
                 const data = snapshot.val() || {};
-                let html = "<h3>ランキング</h3>";
-                Object.entries(data).forEach(([name, d]) => {
-                    html += `<div class="player-row"><span>${name}</span> <b>${d.score}回</b></div>`;
+                if (data.status === 'playing') {
+                    document.getElementById('setup-stage').style.display = 'none';
+                    document.getElementById('game-stage').style.display = 'block';
+                }
+                // ランキング更新（前半表示・後半隠すロジック）
+                const players = data.players || {};
+                let html = "";
+                Object.entries(players).forEach(([name, d]) => {
+                    let score = (data.showScores || data.status === 'end') ? d.score : "???";
+                    html += `<div class="p-row"><span>${name}</span> <span>${score}回</span></div>`;
                 });
-                document.getElementById('rankings').innerHTML = html;
+                document.getElementById('rank-board').innerHTML = html;
             });
         } else {
             document.getElementById('player-view').style.display = 'block';
-            document.getElementById('room-display').innerText = "ルーム: " + roomId;
         }
+
+        window.startGame = () => {
+            update(ref(db, 'game'), { status: 'playing', showScores: true });
+            setTimeout(() => update(ref(db, 'game'), { showScores: false }), 4000); // 4秒後に隠す
+            setTimeout(() => update(ref(db, 'game'), { status: 'end', showScores: true }), 10000);
+        };
 
         window.joinGame = async () => {
             const name = document.getElementById('username').value;
-            if (!name) return alert("名前を入力して下さい");
-            
-            // センサー許可＆ゲームロジック
+            if (!name) return;
             if (typeof DeviceMotionEvent.requestPermission === 'function') await DeviceMotionEvent.requestPermission();
             
+            document.getElementById('join-form').innerHTML = "<h1>振れ！</h1>";
             let count = 0;
             window.addEventListener('devicemotion', (e) => {
                 const {x, y, z} = e.accelerationIncludingGravity;
                 if (Math.abs(x) + Math.abs(y) + Math.abs(z) > 25) {
                     count++;
-                    update(ref(db, `rooms/${roomId}/${name}`), { score: count });
+                    update(ref(db, `game/players/${name}`), { score: count });
                 }
             });
-            document.body.innerHTML = "<h2>ゲーム開始！振れ！</h2>";
         };
     </script>
 </body>
